@@ -18,18 +18,26 @@ export const STATUS_LABEL: Record<Status, string> = {
   PAGO_PROVEEDORES: "Pago a proveedores",
 };
 
-// Color por grupo de etapas: entrada, producción, cliente, cierre.
+// Las 10 etapas se agrupan en 4 tramos, cada uno con una tinta de imprenta.
+export const STAGE_GROUPS = [
+  { key: "entrada", label: "Entrada", statuses: ["RECIBIDO", "BRIEF_REVISION"], bar: "bg-ink", soft: "bg-ink/10", text: "text-ink" },
+  { key: "produccion", label: "Producción", statuses: ["EN_PRODUCCION", "REVISION_INTERNA"], bar: "bg-cyan", soft: "bg-cyan/15", text: "text-ink" },
+  { key: "cliente", label: "Con el cliente", statuses: ["ENVIADO_CLIENTE", "AJUSTES", "APROBADO"], bar: "bg-magenta", soft: "bg-magenta/15", text: "text-ink" },
+  { key: "cierre", label: "Cierre", statuses: ["ENTREGADO", "FACTURADO", "PAGO_PROVEEDORES"], bar: "bg-yellow", soft: "bg-yellow/25", text: "text-ink" },
+] as const;
+export const groupOf = (s: Status) => STAGE_GROUPS.find((g) => (g.statuses as readonly string[]).includes(s))!;
+
 export const STATUS_TONE: Record<Status, string> = {
-  RECIBIDO: "bg-muted/15 text-muted",
-  BRIEF_REVISION: "bg-muted/15 text-muted",
-  EN_PRODUCCION: "bg-accent/15 text-accent",
-  REVISION_INTERNA: "bg-accent/15 text-accent",
-  ENVIADO_CLIENTE: "bg-warn/15 text-warn",
-  AJUSTES: "bg-warn/15 text-warn",
-  APROBADO: "bg-good/15 text-good",
-  ENTREGADO: "bg-good/15 text-good",
-  FACTURADO: "bg-good/15 text-good",
-  PAGO_PROVEEDORES: "bg-ink/10 text-ink",
+  RECIBIDO: "bg-ink text-paper",
+  BRIEF_REVISION: "bg-ink text-paper",
+  EN_PRODUCCION: "bg-cyan text-ink",
+  REVISION_INTERNA: "bg-cyan text-ink",
+  ENVIADO_CLIENTE: "bg-bad text-white",
+  AJUSTES: "bg-bad text-white",
+  APROBADO: "bg-bad text-white",
+  ENTREGADO: "bg-yellow text-ink",
+  FACTURADO: "bg-yellow text-ink",
+  PAGO_PROVEEDORES: "bg-yellow text-ink",
 };
 
 export const SERVICES = [
@@ -53,7 +61,7 @@ export const PRIORITIES = ["BAJA", "MEDIA", "ALTA", "URGENTE"] as const;
 export type PriorityT = (typeof PRIORITIES)[number];
 export const PRIORITY_LABEL: Record<PriorityT, string> = { BAJA: "Baja", MEDIA: "Media", ALTA: "Alta", URGENTE: "Urgente" };
 export const PRIORITY_TONE: Record<PriorityT, string> = {
-  BAJA: "text-muted", MEDIA: "text-ink", ALTA: "text-warn", URGENTE: "text-bad font-semibold",
+  BAJA: "text-muted", MEDIA: "text-ink", ALTA: "text-warn font-semibold", URGENTE: "text-bad font-bold",
 };
 
 export const TASK_STATUSES = ["POR_ACEPTAR", "PENDIENTE", "EN_CURSO", "LISTA"] as const;

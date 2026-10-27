@@ -11,7 +11,7 @@ import Kanban, { type Card } from "@/components/Kanban";
 import Icon from "@/components/Icon";
 import MoreFilters from "@/components/MoreFilters";
 
-export const metadata = { title: "Órdenes" };
+export const metadata = { title: "Tablero" };
 export const dynamic = "force-dynamic";
 
 type SP = Promise<Record<string, string | undefined>>;
@@ -45,19 +45,19 @@ export default async function OrdersPage({ searchParams }: { searchParams: SP })
   };
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="h1">Órdenes</h1>
+        <h1 className="h1">Tablero</h1>
         <div className="flex gap-2">
-          <div className="inline-flex rounded-lg border border-line bg-paper p-0.5" role="group" aria-label="Vista">
-            <Link href={qs({ vista: "tablero" })} className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm ${view === "tablero" ? "bg-accent/10 text-accent font-semibold" : "text-muted"}`}><Icon name="board" />Tablero</Link>
-            <Link href={qs({ vista: "lista" })} className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm ${view === "lista" ? "bg-accent/10 text-accent font-semibold" : "text-muted"}`}><Icon name="list" />Lista</Link>
+          <div className="inline-flex rounded-full bg-paper p-1" role="group" aria-label="Vista">
+            <Link href={qs({ vista: "tablero" })} className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold ${view === "tablero" ? "bg-ink text-paper" : "text-muted hover:text-ink"}`}><Icon name="board" />Tablero</Link>
+            <Link href={qs({ vista: "lista" })} className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold ${view === "lista" ? "bg-ink text-paper" : "text-muted hover:text-ink"}`}><Icon name="list" />Lista</Link>
           </div>
           {canManage(u.role) && <Link href="/ordenes/nueva" className="btn-primary">+ Nueva orden</Link>}
         </div>
       </div>
 
-      <form className="card p-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr_1fr_auto] items-end">
+      <form className="card p-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr_1fr_auto] items-end">
         <input type="hidden" name="vista" value={view} />
         <div><label className="label" htmlFor="q">Buscar</label><input id="q" name="q" defaultValue={sp.q} placeholder="Título, cliente o número" className="input" /></div>
         <MoreFilters active={!!(sp.cliente || sp.responsable || sp.servicio || sp.estado)}>
@@ -74,7 +74,7 @@ export default async function OrdersPage({ searchParams }: { searchParams: SP })
       ) : (
         <div className="card overflow-x-auto">
           <table className="w-full min-w-[760px] text-sm">
-            <thead className="text-left text-xs text-muted">
+            <thead className="text-left font-mono text-[11px] uppercase tracking-[0.06em] text-muted">
               <tr className="border-b border-line">
                 <th className="px-4 py-2.5 font-medium">#</th><th className="px-2 font-medium">Orden</th><th className="px-2 font-medium">Cliente</th>
                 <th className="px-2 font-medium">Etapa</th><th className="px-2 font-medium">Prioridad</th><th className="px-2 font-medium">Responsable</th><th className="px-4 font-medium text-right">Entrega</th>
@@ -86,7 +86,7 @@ export default async function OrdersPage({ searchParams }: { searchParams: SP })
                 return (
                   <tr key={r.id} className="border-b border-line last:border-0 hover:bg-canvas">
                     <td className="px-4 py-2.5 font-mono text-xs text-muted tabular">{r.number}</td>
-                    <td className="px-2"><Link href={`/ordenes/${r.id}`} className="font-medium hover:text-accent">{r.title}</Link><span className="block text-xs text-muted">{SERVICE_LABEL[r.serviceType]}</span></td>
+                    <td className="px-2"><Link href={`/ordenes/${r.id}`} className="font-bold hover:underline">{r.title}</Link><span className="block text-xs text-muted">{SERVICE_LABEL[r.serviceType]}</span></td>
                     <td className="px-2">{r.client}</td>
                     <td className="px-2"><StatusBadge status={r.status} /></td>
                     <td className={`px-2 ${PRIORITY_TONE[r.priority]}`}>{PRIORITY_LABEL[r.priority]}</td>
@@ -101,7 +101,7 @@ export default async function OrdersPage({ searchParams }: { searchParams: SP })
         </div>
       )}
       <p className="text-xs text-muted">
-        {sp.cerradas ? <Link className="text-accent" href={qs({ cerradas: undefined })}>Ocultar órdenes cerradas</Link> : <Link className="text-accent" href={qs({ cerradas: "1" })}>Mostrar también las cerradas (pago a proveedores hecho)</Link>}
+        {sp.cerradas ? <Link className="font-semibold text-ink underline" href={qs({ cerradas: undefined })}>Ocultar órdenes cerradas</Link> : <Link className="font-semibold text-ink underline" href={qs({ cerradas: "1" })}>Mostrar también las cerradas (pago a proveedores hecho)</Link>}
       </p>
     </div>
   );

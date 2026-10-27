@@ -24,7 +24,7 @@ export default async function ClientsPage() {
             const renew = c.renewalDate && c.renewalDate < soon;
             return (
               <li key={c.id}>
-                <Link href={`/clientes/${c.id}`} className="card p-4 grid gap-1 hover:border-accent h-full">
+                <Link href={`/clientes/${c.id}`} className="card p-4 grid gap-1 transition-transform hover:-translate-y-0.5 h-full">
                   <span className="font-medium">{c.name}</span>
                   <span className="text-xs text-muted">{c.contactName ?? "Sin contacto"}</span>
                   <span className="mt-2 flex justify-between text-xs">

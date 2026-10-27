@@ -23,7 +23,7 @@ export default function OrderForm({ action, clients, people, values = {}, money,
               <option value="" disabled>Elige un cliente</option>
               {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
-            <Link href="/clientes/nuevo?next=orden" className="mt-1 inline-block text-xs text-accent">+ Cliente nuevo</Link>
+            <Link href="/clientes/nuevo?next=orden" className="mt-1 inline-block text-xs font-semibold text-ink underline">+ Cliente nuevo</Link>
           </Field>
           <Field label="Tipo de servicio" id="serviceType">
             <select id="serviceType" name="serviceType" defaultValue={v.serviceType ?? "REDES_SOCIALES"} className="input">
@@ -44,7 +44,7 @@ export default function OrderForm({ action, clients, people, values = {}, money,
           <Field label="Fecha de entrega" id="dueDate"><input id="dueDate" name="dueDate" type="date" defaultValue={toInputDate(v.dueDate)} className="input" /></Field>
           <Field label="Rondas de revisión incluidas" id="revisionRoundsIncluded"><input id="revisionRoundsIncluded" name="revisionRoundsIncluded" type="number" min={0} max={10} defaultValue={v.revisionRoundsIncluded ?? 2} className="input" /></Field>
         </div>
-        <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="isRecurring" defaultChecked={v.isRecurring} className="h-4 w-4 accent-[rgb(var(--accent))]" />Es parte de un trabajo recurrente (iguala)</label>
+        <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="isRecurring" defaultChecked={v.isRecurring} className="h-4 w-4 accent-[#111111]" />Es parte de un trabajo recurrente (iguala)</label>
       </section>
 
       <section className="card p-5 grid gap-4">

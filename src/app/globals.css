@@ -2,55 +2,52 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Estilo "Imprenta": papel, tinta negra y los tres colores de proceso (cian, magenta, amarillo).
+   Cada color de proceso marca un grupo de etapas: cian = producción, magenta = con el cliente, amarillo = cierre. */
 :root {
-  --ink: 22 24 31;
-  --muted: 96 101 115;
-  --line: 222 225 232;
-  --paper: 255 255 255;
-  --canvas: 244 245 248;
-  --accent: 44 71 245;
-  --good: 29 138 85;
-  --warn: 180 112 20;
-  --bad: 200 52 52;
-  --font-body: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-display: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --ink: 17 17 17;          /* negro de imprenta */
+  --muted: 90 88 80;        /* texto secundario */
+  --line: 226 224 216;      /* bordes suaves */
+  --paper: 255 255 255;     /* superficies */
+  --canvas: 244 243 239;    /* fondo papel */
+  --cyan: 0 163 224;
+  --magenta: 230 0 126;
+  --yellow: 255 212 0;
+  --good: 22 128 79;
+  --warn: 166 98 0;
+  --bad: 194 0 106;         /* magenta oscuro: alertas legibles sobre blanco */
+  --font-body: "Archivo", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --font-display: "Archivo", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   color-scheme: light;
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --ink: 236 238 244;
-    --muted: 154 160 177;
-    --line: 44 49 61;
-    --paper: 24 27 35;
-    --canvas: 16 18 24;
-    --accent: 124 144 255;
-    --good: 76 194 138;
-    --warn: 229 170 90;
-    --bad: 240 110 110;
-    color-scheme: dark;
-  }
 }
 
 html, body { background: rgb(var(--canvas)); color: rgb(var(--ink)); }
 body { font-family: var(--font-body); -webkit-font-smoothing: antialiased; }
+a { color: inherit; }
 
 @layer components {
-  .card { @apply bg-paper border border-line rounded-xl; }
-  .btn { @apply inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-paper px-3.5 py-2 text-sm font-medium text-ink hover:bg-canvas transition-colors disabled:opacity-50; }
-  .btn-primary { @apply btn border-accent bg-accent text-white hover:bg-accent/90; }
-  .btn-danger { @apply btn border-bad/40 text-bad hover:bg-bad/10; }
-  .btn-sm { @apply px-2.5 py-1.5 text-xs; }
-  .input { @apply w-full rounded-lg border border-line bg-canvas px-3 py-2 text-sm text-ink placeholder:text-muted/70 focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent; }
-  .label { @apply block text-xs font-medium text-muted mb-1; }
-  .h1 { @apply font-display text-2xl font-bold tracking-tight; }
-  .h2 { @apply font-display text-base font-semibold; }
-  .chip { @apply inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium; }
+  .card { @apply bg-paper rounded-[18px]; }
+  .card-ink { @apply bg-ink text-canvas rounded-[18px]; }
+  .btn { @apply inline-flex items-center justify-center gap-2 rounded-full border-2 border-ink bg-transparent px-4 py-2 text-sm font-bold text-ink transition-colors hover:bg-ink hover:text-paper disabled:opacity-50; }
+  .btn-primary { @apply inline-flex items-center justify-center gap-2 rounded-full border-2 border-ink bg-ink px-5 py-2.5 text-sm font-bold text-paper transition-colors hover:bg-ink/85 disabled:opacity-50; }
+  .btn-danger { @apply inline-flex items-center justify-center gap-2 rounded-full border-2 border-magenta bg-magenta px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-bad disabled:opacity-50; }
+  .btn-sm { @apply px-3 py-1 text-xs; }
+  .input { @apply w-full rounded-xl border-2 border-line bg-paper px-3.5 py-2.5 text-[15px] text-ink placeholder:text-muted/80 focus:outline-none focus:border-ink; }
+  .label { @apply block font-mono text-[11px] font-semibold uppercase tracking-[0.06em] text-muted mb-1.5; }
+  .h1 { @apply font-display text-[clamp(28px,4vw,44px)] leading-[1.04] font-extrabold tracking-[-0.02em]; font-stretch: 112%; }
+  .h2 { @apply font-display text-lg font-extrabold; font-stretch: 112%; }
+  .eyebrow { @apply font-mono text-xs font-semibold uppercase tracking-[0.06em] text-muted; }
+  .chip { @apply inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-xs font-bold; }
+  .tag { @apply inline-flex items-center rounded-lg px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.04em]; }
   .tabular { font-variant-numeric: tabular-nums; }
+  .wide { font-stretch: 112%; }
 }
 
 /* Los hijos de una grilla pueden encogerse; el contenido ancho hace scroll dentro de su propio contenedor. */
 .grid > * { min-width: 0; }
 
-:focus-visible { outline: 2px solid rgb(var(--accent)); outline-offset: 2px; }
+:focus-visible { outline: 3px solid rgb(var(--cyan)); outline-offset: 2px; }
+details > summary { list-style: none; }
+details > summary::-webkit-details-marker { display: none; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }

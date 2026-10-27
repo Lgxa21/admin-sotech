@@ -30,7 +30,7 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
           <D label="Contacto">{[c.contactName, c.contactPhone, c.contactEmail].filter(Boolean).join("\n")}</D>
           <D label="RIF">{c.taxId}</D>
           <D label="Renovación">{c.renewalDate ? fmtDate(c.renewalDate) : null}</D>
-          <D label="Manual de marca">{c.brandManualUrl ? <a href={c.brandManualUrl} target="_blank" rel="noreferrer" className="text-accent">Abrir</a> : null}</D>
+          <D label="Manual de marca">{c.brandManualUrl ? <a href={c.brandManualUrl} target="_blank" rel="noreferrer" className="font-semibold text-ink underline">Abrir</a> : null}</D>
           <D label="Contrato y servicios">{c.contractNotes}</D>
           <D label="Redes">{c.socialNotes}</D>
           <D label="Notas">{c.notes}</D>

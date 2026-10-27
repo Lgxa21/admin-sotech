@@ -5,8 +5,8 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: "Sotech",
     start_url: "/",
     display: "standalone",
-    background_color: "#f4f5f8",
-    theme_color: "#2c47f5",
+    background_color: "#f4f3ef",
+    theme_color: "#111111",
     lang: "es",
     icons: [{ src: "/icon.svg", sizes: "any", type: "image/svg+xml" }],
   };

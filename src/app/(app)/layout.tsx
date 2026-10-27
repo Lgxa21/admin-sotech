@@ -7,12 +7,13 @@ import { canManage, isDirector } from "@/lib/perm";
 import { logout } from "@/app/actions/auth";
 import Nav from "@/components/Nav";
 import Icon from "@/components/Icon";
+import Logo from "@/components/Logo";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const u = await requireUser();
   const [{ n }] = await db.select({ n: count() }).from(notifications).where(and(eq(notifications.userId, u.id), eq(notifications.read, false)));
   const items = [
-    ...(u.role !== "FREELANCER" ? [{ href: "/", label: "Panel", icon: "home" }, { href: "/ordenes", label: "Órdenes", icon: "board" }] : []),
+    ...(u.role !== "FREELANCER" ? [{ href: "/", label: "Hoy", icon: "home" }, { href: "/ordenes", label: "Tablero", icon: "board" }] : []),
     { href: "/tareas", label: "Mis tareas", icon: "check" },
     ...(canManage(u.role) ? [{ href: "/clientes", label: "Clientes", icon: "building" }] : []),
     { href: "/avisos", label: "Avisos", icon: "bell", badge: n },
@@ -20,26 +21,27 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   ];
   return (
     <div className="min-h-dvh md:grid md:grid-cols-[232px_minmax(0,1fr)]">
-      <aside className="hidden md:flex md:flex-col sticky top-0 h-dvh border-r border-line bg-paper px-3 py-5">
-        <Link href="/" className="mb-6 flex items-center gap-2.5 px-2">
-          <img src="/icon.svg" alt="" className="h-8 w-8" />
-          <span className="font-display font-bold">Sotech</span>
-        </Link>
+      <aside className="hidden md:flex md:flex-col sticky top-0 h-dvh bg-ink px-5 py-7 gap-8">
+        <Link href="/" aria-label="Inicio"><Logo /></Link>
         <Nav items={items} variant="side" />
-        <div className="mt-auto border-t border-line pt-4 px-2 grid gap-2">
-          <Link href="/perfil" className="text-sm">
-            <span className="block font-medium">{u.name}</span>
-            <span className="block text-xs text-muted">{ROLE_LABEL[u.role]}</span>
+        <div className="mt-auto grid gap-2 text-sm">
+          <Link href="/perfil" className="text-canvas hover:text-yellow">
+            <span className="block font-semibold">{u.name}</span>
+            <span className="block text-xs text-canvas/60">{ROLE_LABEL[u.role]}</span>
           </Link>
-          <form action={logout}><button className="flex items-center gap-2 text-xs text-muted hover:text-ink"><Icon name="logout" className="h-3.5 w-3.5" />Salir</button></form>
+          <form action={logout}><button className="flex items-center gap-2 text-xs text-canvas/60 hover:text-canvas"><Icon name="logout" className="h-3.5 w-3.5" />Salir</button></form>
         </div>
       </aside>
-      <header className="md:hidden sticky top-0 z-20 flex items-center justify-between border-b border-line bg-paper/95 backdrop-blur px-4 py-3"
-        style={{ paddingTop: "max(12px, env(safe-area-inset-top))" }}>
-        <Link href="/" className="flex items-center gap-2"><img src="/icon.svg" alt="" className="h-7 w-7" /><span className="font-display font-bold">Sotech</span></Link>
-        <Link href="/perfil" className="text-xs text-muted">{u.name.split(" ")[0]}</Link>
+      <header className="md:hidden sticky top-0 z-20 flex items-center justify-between bg-ink px-4 py-3"
+        style={{ paddingTop: "max(12px, env(safe-area-inset-top))", paddingLeft: "max(16px, env(safe-area-inset-left))", paddingRight: "max(16px, env(safe-area-inset-right))" }}>
+        <Link href="/" aria-label="Inicio"><Logo size={28} /></Link>
+        <Link href="/perfil" className="flex h-8 w-8 items-center justify-center rounded-full bg-yellow text-xs font-bold text-ink" aria-label="Mi perfil">
+          {u.name.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase()}
+        </Link>
       </header>
-      <main className="min-w-0 px-4 pb-24 pt-5 md:px-8 md:py-8">{children}</main>
+      <main className="min-w-0 pb-28 pt-6 md:pb-12 md:pt-10" style={{ paddingLeft: "max(16px, env(safe-area-inset-left))", paddingRight: "max(16px, env(safe-area-inset-right))" }}>
+        <div className="mx-auto w-full max-w-[1180px] md:px-6 lg:px-10">{children}</div>
+      </main>
       <Nav items={items} variant="bottom" />
     </div>
   );

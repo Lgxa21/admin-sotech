@@ -24,7 +24,7 @@ export default async function MyTasks({ searchParams }: { searchParams: Promise<
           <h1 className="h1">Mis tareas</h1>
           {!showDone && <p className="text-sm text-muted">{rows.length} abiertas{toAccept ? ` · ${toAccept} por aceptar` : ""}</p>}
         </div>
-        <a href={showDone ? "/tareas" : "/tareas?ver=listas"} className="text-sm text-accent">{showDone ? "Ver abiertas" : "Ver terminadas"}</a>
+        <a href={showDone ? "/tareas" : "/tareas?ver=listas"} className="text-sm font-semibold text-ink underline">{showDone ? "Ver abiertas" : "Ver terminadas"}</a>
       </div>
       {rows.length ? (
         <ul className="grid gap-2">

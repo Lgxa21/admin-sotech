@@ -22,8 +22,8 @@ export default async function Notices() {
         <ul className="card divide-y divide-line">
           {rows.map((n) => (
             <li key={n.id}>
-              <Link href={n.orderId ? `/ordenes/${n.orderId}` : "#"} className={`flex gap-3 px-4 py-3 hover:bg-canvas ${n.read ? "" : "bg-accent/5"}`}>
-                <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${n.urgent ? "bg-bad" : n.read ? "bg-transparent" : "bg-accent"}`} />
+              <Link href={n.orderId ? `/ordenes/${n.orderId}` : "#"} className={`flex gap-3 px-4 py-3 hover:bg-canvas ${n.read ? "" : "bg-yellow/15"}`}>
+                <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${n.urgent ? "bg-magenta" : n.read ? "bg-transparent" : "bg-ink"}`} />
                 <span className="min-w-0 flex-1">
                   <span className={`block text-sm ${n.read ? "text-muted" : "font-medium"} ${n.urgent ? "text-bad" : ""}`}>{n.text}</span>
                   <span className="block text-xs text-muted">{fmtDateTime(n.createdAt)}</span>
