@@ -14,7 +14,13 @@ Sistema de órdenes, tareas y clientes para Sotech - Caracasprint C.A. Esta es l
 - **Roles:** Dirección, Administración, Producción (sin montos, solo sus órdenes) y Freelancer (solo sus tareas).
 - Se instala en el celular como app (manifest web).
 
-Pendiente para completar la Fase 1: cotizaciones, cobros y pagos con tasa del día, rentabilidad, enlaces para el cliente (pedidos y aprobación), notificaciones push y correo, igualas que generan órdenes.
+- **Finanzas** (Dirección y Administración): tasa del día (Bs. por USD), cobros con método y referencia, pagos a proveedores y freelancers, gastos por orden, por cobrar, por pagar, margen por orden y rentabilidad por cliente. Todo se reporta en USD; cada movimiento en bolívares guarda la tasa con la que se registró.
+- **Cotizaciones** con líneas, vista para imprimir o guardar en PDF, y botón para convertirlas en orden.
+- **Enlace de aprobación:** el cliente aprueba o pide cambios sin cuenta (`/aprobar/…`); la orden cambia de etapa sola y se cuentan las rondas.
+- **Enlace de pedidos** por cliente (`/pedido/…`): cada pedido entra como orden nueva.
+- **Igualas:** cada mes se crea sola la orden de cada iguala activa, con una tarea por entregable.
+
+Pendiente: notificaciones push y por correo, calendario de publicaciones, reportes exportables e integraciones (Fase 2).
 
 ## Desarrollo
 
@@ -32,7 +38,7 @@ Cambios al modelo de datos: editar `src/db/schema.ts` y correr `npm run db:gener
 
 ## Producción (Railway)
 
-Variables necesarias: `DATABASE_URL`, `SESSION_SECRET` (cadena larga y aleatoria), `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_NAME`.
+Variables necesarias: `DATABASE_URL`, `SESSION_SECRET` (cadena larga y aleatoria), `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_NAME`. Opcional: `PUBLIC_URL` (la dirección pública, para los enlaces que se envían al cliente; si falta, se toma de la petición).
 `npm run build` y `npm start` (aplica migraciones y crea la cuenta inicial si no hay usuarios).
 
 ### Si alguien de Dirección olvida su contraseña

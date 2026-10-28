@@ -89,3 +89,11 @@ export const fromInputDate = (s: FormDataEntryValue | null) => {
   const v = typeof s === "string" ? s.trim() : "";
   return v ? new Date(`${v}T18:00:00-04:00`) : null; // fin del día laboral en Caracas
 };
+
+export const QUOTE_STATUS: Record<string, { label: string; tone: string }> = {
+  BORRADOR: { label: "Borrador", tone: "bg-ink/10 text-ink" },
+  ENVIADA: { label: "Enviada", tone: "bg-cyan text-ink" },
+  APROBADA: { label: "Aprobada", tone: "bg-yellow text-ink" },
+  RECHAZADA: { label: "Rechazada", tone: "bg-ink text-paper" },
+};
+

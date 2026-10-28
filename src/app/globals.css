@@ -46,6 +46,8 @@ a { color: inherit; }
 
 /* Los hijos de una grilla pueden encogerse; el contenido ancho hace scroll dentro de su propio contenedor. */
 .grid > * { min-width: 0; }
+/* Los textos ocultos para lectores de pantalla quedan dentro de su contenedor con scroll. */
+.overflow-x-auto { position: relative; }
 
 :focus-visible { outline: 3px solid rgb(var(--cyan)); outline-offset: 2px; }
 details > summary { list-style: none; }

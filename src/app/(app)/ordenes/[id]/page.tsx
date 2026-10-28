@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { asc, desc, eq } from "drizzle-orm";
-import { db, orders, users, comments, statusChanges, tasks } from "@/db";
+import { db, orders, users, comments, statusChanges, tasks, payments, costs, suppliers, approvalLinks } from "@/db";
 import { requireUser } from "@/lib/auth";
 import { canAccessOrder } from "@/lib/access";
 import { canManage, canSeeMoney, isDirector } from "@/lib/perm";
@@ -11,6 +11,13 @@ import {
 import { moveOrderForm, addComment, registerClientChange, raiseUrgency } from "@/app/actions/orders";
 import { createTask } from "@/app/actions/tasks";
 import TaskCard from "@/components/TaskCard";
+import { PaymentForm, CostForm } from "@/components/MoneyForms";
+import { moneyByOrder } from "@/lib/finance";
+import { usd, money, fmtDay, todayCaracas, PAYMENT_METHODS } from "@/lib/money";
+import { deletePayment, deleteCost, markCostPaid } from "@/app/actions/finance";
+import { createApprovalLink, cancelApprovalLink } from "@/app/actions/client-links";
+import { baseUrl } from "@/lib/url";
+import CopyLink from "@/components/CopyLink";
 
 export const dynamic = "force-dynamic";
 const TZ = "America/Caracas";
@@ -59,6 +66,24 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
     db.select({ id: users.id, name: users.name, role: users.role }).from(users).where(eq(users.active, true)).orderBy(asc(users.name)),
   ]);
 
+  const seeMoney = canSeeMoney(u.role);
+  const [payRows, costRows, supplierList, moneyMap]: [
+    (typeof payments.$inferSelect)[],
+    ((typeof costs.$inferSelect) & { supplier: (typeof suppliers.$inferSelect) | null })[],
+    { id: string; name: string; kind: string }[],
+    Awaited<ReturnType<typeof moneyByOrder>>,
+  ] = seeMoney
+    ? await Promise.all([
+        db.select().from(payments).where(eq(payments.orderId, id)).orderBy(desc(payments.paidOn)),
+        db.query.costs.findMany({ where: eq(costs.orderId, id), with: { supplier: true }, orderBy: [asc(costs.createdAt)] }),
+        db.select({ id: suppliers.id, name: suppliers.name, kind: suppliers.kind }).from(suppliers).where(eq(suppliers.active, true)).orderBy(asc(suppliers.name)),
+        moneyByOrder([{ id: o.id, budget: o.budget, currency: o.currency }]),
+      ])
+    : [[], [], [], new Map()];
+  const om = moneyMap.get(id);
+  const links = u.role === "FREELANCER" ? [] : await db.select().from(approvalLinks).where(eq(approvalLinks.orderId, id)).orderBy(desc(approvalLinks.createdAt));
+  const activeLink = links.find((l) => l.status === "PENDIENTE");
+  const base = await baseUrl();
   const manager = canManage(u.role);
   const freelancer = u.role === "FREELANCER";
   const idx = STATUSES.indexOf(o.status);
@@ -142,6 +167,39 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
         )}
       </section>
 
+      {!freelancer && (o.status === "ENVIADO_CLIENTE" || links.length > 0) && (
+        <section id="cliente" aria-labelledby="cliente-t" className="card grid scroll-mt-24 gap-4 px-6 py-6">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 id="cliente-t" className="h2">Aprobación del cliente</h2>
+            <span className="text-sm text-muted">El cliente responde desde un enlace, sin cuenta</span>
+          </div>
+          {o.status === "ENVIADO_CLIENTE" && (activeLink ? (
+            <div className="grid gap-3 rounded-2xl bg-yellow/30 p-4">
+              <p className="text-sm"><b>Enlace listo (ronda {activeLink.round}).</b> Envíaselo al cliente desde el WhatsApp o el correo de la empresa. Cuando responda, la orden cambia de etapa sola y te avisamos.</p>
+              <CopyLink url={`${base}/aprobar/${activeLink.token}`} />
+              <form action={cancelApprovalLink.bind(null, activeLink.id, id)}><button className="text-xs text-muted hover:text-bad">Anular este enlace</button></form>
+            </div>
+          ) : (
+            <form action={createApprovalLink.bind(null, id)} className="grid gap-3 rounded-2xl bg-canvas p-4">
+              <div><label className="label" htmlFor="pieceUrl">Enlace a la pieza (Drive, Dropbox, imagen…)</label><input id="pieceUrl" name="pieceUrl" type="url" placeholder="https://drive.google.com/…" className="input" /></div>
+              <div><label className="label" htmlFor="message">Mensaje para el cliente (opcional)</label><textarea id="message" name="message" rows={2} placeholder="Ej.: Aquí está la versión final del banner. ¿Nos confirmas?" className="input" /></div>
+              <div><button className="btn-primary">Crear enlace de aprobación</button></div>
+            </form>
+          ))}
+          {links.filter((l) => l.status !== "PENDIENTE").length > 0 && (
+            <ul className="grid gap-1.5 text-sm">
+              {links.filter((l) => l.status !== "PENDIENTE").map((l) => (
+                <li key={l.id} className="flex flex-wrap items-center gap-3 rounded-xl bg-canvas px-4 py-2.5">
+                  <span className={`tag py-0.5 ${l.status === "APROBADO" ? "bg-yellow text-ink" : l.status === "CAMBIOS" ? "bg-bad text-white" : "bg-ink/10 text-ink"}`}>{l.status === "APROBADO" ? "Aprobó" : l.status === "CAMBIOS" ? "Pidió cambios" : "Anulado"}</span>
+                  <span className="min-w-0 flex-1">Ronda {l.round}{l.clientName ? ` · ${l.clientName}` : ""}{l.clientComment ? ` · “${l.clientComment.slice(0, 80)}${l.clientComment.length > 80 ? "…" : ""}”` : ""}</span>
+                  <span className="font-mono text-[13px] text-muted">{fmtDateTime(l.respondedAt ?? l.createdAt)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
+
       <div className="flex flex-wrap items-start gap-5">
         <div className="grid min-w-0 flex-[999_1_420px] gap-5">
           <section aria-labelledby="brief" className="card grid gap-3 px-6 py-6">
@@ -193,6 +251,76 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
               </details>
             )}
           </section>
+
+          {seeMoney && om && (
+            <section id="dinero" aria-labelledby="dinero-t" className="card grid scroll-mt-24 gap-5 px-6 py-6">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <h2 id="dinero-t" className="h2">Dinero</h2>
+                <span className="text-sm text-muted">Montos en USD</span>
+              </div>
+              {!o.budget && <p className="rounded-[14px] bg-yellow/30 px-4 py-3 text-sm">Esta orden no tiene precio. <Link href={`/ordenes/${id}/editar`} className="font-bold underline">Agrégalo</Link> para calcular lo que falta por cobrar y el margen.</p>}
+              <dl className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+                <Fig label="Precio" value={usd(om.price)} />
+                <Fig label="Cobrado" value={usd(om.collected)} />
+                <Fig label="Por cobrar" value={usd(om.pending)} strong={om.pending > 0} />
+                <Fig label={`Margen${om.price ? ` · ${Math.round((om.margin / om.price) * 100)}%` : ""}`} value={usd(om.margin)} bad={om.margin < 0} />
+              </dl>
+
+              <div className="grid gap-2">
+                <h3 className="eyebrow">Cobros</h3>
+                {payRows.length ? (
+                  <ul className="grid gap-1.5 text-sm">
+                    {payRows.map((p) => (
+                      <li key={p.id} className="flex flex-wrap items-center gap-3 rounded-xl bg-canvas px-4 py-2.5">
+                        <span className="font-mono text-[13px]">{fmtDay(p.paidOn)}</span>
+                        <span className="min-w-0 flex-1">{p.method}{p.reference && <span className="text-muted"> · Ref. {p.reference}</span>}</span>
+                        <span className="font-mono font-semibold">{money(p.amount, p.currency)}</span>
+                        <form action={deletePayment.bind(null, p.id, `/ordenes/${id}#dinero`)}><button className="text-xs text-muted hover:text-bad" aria-label="Eliminar cobro">✕</button></form>
+                      </li>
+                    ))}
+                  </ul>
+                ) : <p className="text-sm text-muted">Todavía no hay cobros.</p>}
+                <details>
+                  <summary className="w-fit cursor-pointer text-sm font-bold hover:underline">+ Registrar cobro</summary>
+                  <div className="mt-3 rounded-2xl bg-canvas p-4"><PaymentForm back={`/ordenes/${id}#dinero`} orderId={id} /></div>
+                </details>
+              </div>
+
+              <div className="grid gap-2">
+                <h3 className="eyebrow">Costos: proveedores, freelancers y gastos</h3>
+                {costRows.length ? (
+                  <ul className="grid gap-1.5 text-sm">
+                    {costRows.map((c) => (
+                      <li key={c.id} className="grid gap-2 rounded-xl bg-canvas px-4 py-2.5">
+                        <div className="flex flex-wrap items-center gap-3">
+                          <span className={`tag py-0.5 ${c.status === "PAGADO" ? "bg-ink text-paper" : "bg-yellow text-ink"}`}>{c.status === "PAGADO" ? "Pagado" : "Por pagar"}</span>
+                          <span className="min-w-0 flex-1">{c.concept}{c.supplier && <span className="text-muted"> · {c.supplier.name}</span>}</span>
+                          <span className="font-mono font-semibold">{money(c.amount, c.currency)}</span>
+                        </div>
+                        {c.status === "PENDIENTE" ? (
+                          <details>
+                            <summary className="w-fit cursor-pointer text-xs font-bold underline decoration-dotted underline-offset-4">Marcar como pagado</summary>
+                            <form action={markCostPaid.bind(null, c.id)} className="mt-2 flex flex-wrap items-end gap-2">
+                              <input type="hidden" name="back" value={`/ordenes/${id}#dinero`} />
+                              <input name="date" type="date" defaultValue={todayCaracas()} className="input w-40" aria-label="Fecha de pago" />
+                              <select name="method" className="input w-40" aria-label="Método">{PAYMENT_METHODS.map((m) => <option key={m}>{m}</option>)}</select>
+                              <input name="reference" placeholder="Referencia" className="input w-36" aria-label="Referencia" />
+                              <button className="btn btn-sm">Guardar</button>
+                              <button formAction={deleteCost.bind(null, c.id, `/ordenes/${id}#dinero`)} className="ml-auto text-xs text-muted hover:text-bad">Eliminar</button>
+                            </form>
+                          </details>
+                        ) : <p className="text-xs text-muted">Pagado el {fmtDay(c.paidOn)}{c.method ? ` · ${c.method}` : ""}{c.reference ? ` · Ref. ${c.reference}` : ""}</p>}
+                      </li>
+                    ))}
+                  </ul>
+                ) : <p className="text-sm text-muted">Sin costos registrados.</p>}
+                <details>
+                  <summary className="w-fit cursor-pointer text-sm font-bold hover:underline">+ Agregar costo</summary>
+                  <div className="mt-3 rounded-2xl bg-canvas p-4"><CostForm back={`/ordenes/${id}#dinero`} orderId={id} suppliers={supplierList} /></div>
+                </details>
+              </div>
+            </section>
+          )}
 
           <section id="comentarios" aria-labelledby="conv" className="card grid scroll-mt-24 gap-4 px-6 py-6">
             <h2 id="conv" className="h2">Conversación</h2>
@@ -272,6 +400,15 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
           )}
         </aside>
       </div>
+    </div>
+  );
+}
+
+function Fig({ label, value, strong, bad }: { label: string; value: string; strong?: boolean; bad?: boolean }) {
+  return (
+    <div className={`grid gap-0.5 rounded-[14px] px-4 py-3 ${strong ? "bg-yellow" : "bg-canvas"}`}>
+      <dt className="font-mono text-[11px] font-semibold uppercase tracking-[0.06em] text-muted">{label}</dt>
+      <dd className={`font-mono text-base font-semibold tabular ${bad ? "text-bad" : ""}`}>{value}</dd>
     </div>
   );
 }

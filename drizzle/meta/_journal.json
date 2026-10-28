@@ -8,6 +8,13 @@
       "when": 1793072627275,
       "tag": "0000_inicial",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1793152711941,
+      "tag": "0001_dinero_cotizaciones_igualas_enlaces",
+      "breakpoints": true
     }
   ]
 }

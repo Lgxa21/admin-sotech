@@ -16,7 +16,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     ...(u.role !== "FREELANCER"
       ? [{ href: "/", label: "Hoy", icon: "home" }, { href: "/ordenes", label: "Tablero", icon: "board", match: ["/tareas", "/equipo"] }]
       : [{ href: "/tareas", label: "Mis tareas", icon: "check" }]),
-    ...(canManage(u.role) ? [{ href: "/clientes", label: "Clientes", icon: "building" }] : []),
+    ...(canManage(u.role) ? [{ href: "/clientes", label: "Clientes", icon: "building" }, { href: "/finanzas", label: "Finanzas", icon: "money" }] : []),
     { href: "/avisos", label: "Avisos", icon: "bell", badge: n },
   ];
   return (

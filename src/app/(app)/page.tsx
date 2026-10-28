@@ -6,6 +6,7 @@ import { requireUser } from "@/lib/auth";
 import { visibleOrders } from "@/lib/access";
 import { canManage, isDirector } from "@/lib/perm";
 import { STAGE_GROUPS, type Status } from "@/lib/labels";
+import { ensureRetainerOrders } from "@/lib/retainers";
 
 export const metadata = { title: "Hoy" };
 export const dynamic = "force-dynamic";
@@ -20,6 +21,7 @@ type Attention = { key: string; tag: string; tone: string; title: string; detail
 export default async function Hoy() {
   const u = await requireUser();
   if (u.role === "FREELANCER") redirect("/tareas");
+  await ensureRetainerOrders().catch(() => 0);
   const vis = visibleOrders(u);
   const scope = (...c: (SQL | undefined)[]) => and(vis, ...c);
   const now = new Date();
