@@ -34,3 +34,12 @@ Cambios al modelo de datos: editar `src/db/schema.ts` y correr `npm run db:gener
 
 Variables necesarias: `DATABASE_URL`, `SESSION_SECRET` (cadena larga y aleatoria), `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_NAME`.
 `npm run build` y `npm start` (aplica migraciones y crea la cuenta inicial si no hay usuarios).
+
+### Si alguien de Dirección olvida su contraseña
+
+Dirección cambia la contraseña de cualquier persona desde **Equipo**. Si la que la olvidó es la única cuenta de Dirección:
+
+1. En Railway, agrega al servicio las variables `RESET_PASSWORD_EMAIL` (su correo) y `RESET_PASSWORD` (una contraseña temporal). El servicio se reinicia y la aplica.
+2. Entra con la contraseña temporal y cámbiala en **Perfil**.
+3. Borra las dos variables en Railway.
+

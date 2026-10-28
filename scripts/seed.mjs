@@ -22,6 +22,15 @@ if (n === 0) {
   }
 }
 
+// Recuperación de acceso: si RESET_PASSWORD_EMAIL y RESET_PASSWORD están definidos, cambia la contraseña de esa cuenta al iniciar.
+// Úsalo una sola vez y luego borra las dos variables, para que no se vuelva a aplicar en el próximo reinicio.
+const resetEmail = (process.env.RESET_PASSWORD_EMAIL || "").trim().toLowerCase();
+const resetPassword = process.env.RESET_PASSWORD || "";
+if (resetEmail && resetPassword) {
+  const r = await q("update users set password_hash = $1 where lower(email) = $2", [await bcrypt.hash(resetPassword, 10), resetEmail]);
+  console.log(r.rowCount ? `Contraseña restablecida para ${resetEmail}` : `No existe una cuenta con el correo ${resetEmail}`);
+}
+
 if (process.env.SEED_DEMO === "1") {
   const { rows: [{ c }] } = await q("select count(*)::int as c from clients");
   if (c > 0) {
