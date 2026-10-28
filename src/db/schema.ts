@@ -114,10 +114,12 @@ export const tasks = pgTable("tasks", {
   status: taskStatusEnum("status").notNull().default("PENDIENTE"),
   dueDate: ts("due_date"),
   checklist: jsonb("checklist").$type<ChecklistItem[]>().notNull().default([]),
+  publishAt: ts("publish_at"), // fecha de publicación programada (calendario de contenidos)
+  channel: text("channel"), // red o medio donde se publica: Instagram, TikTok…
   acceptedAt: ts("accepted_at"),
   createdAt: ts("created_at").notNull().defaultNow(),
   updatedAt: ts("updated_at").notNull().defaultNow(),
-}, (t) => [index("tasks_assignee_idx").on(t.assigneeId, t.status), index("tasks_order_idx").on(t.orderId)]);
+}, (t) => [index("tasks_assignee_idx").on(t.assigneeId, t.status), index("tasks_order_idx").on(t.orderId), index("tasks_publish_idx").on(t.publishAt)]);
 
 export const comments = pgTable("comments", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -266,6 +268,18 @@ export const approvalLinks = pgTable("approval_links", {
   createdById: uuid("created_by_id").notNull().references(() => users.id),
   createdAt: ts("created_at").notNull().defaultNow(),
 }, (t) => [index("approval_links_order_idx").on(t.orderId)]);
+
+// ---------- Biblioteca interna ----------
+export const docs = pgTable("docs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  category: text("category").notNull().default("proceso"), // protocolo | proceso | mensaje | tarifas | guia
+  title: text("title").notNull(),
+  body: text("body").notNull().default(""),
+  position: integer("position").notNull().default(0),
+  updatedById: uuid("updated_by_id").references(() => users.id),
+  createdAt: ts("created_at").notNull().defaultNow(),
+  updatedAt: ts("updated_at").notNull().defaultNow(),
+}, (t) => [index("docs_category_idx").on(t.category, t.position)]);
 
 export const ordersRelations = relations(orders, ({ one, many }) => ({
   client: one(clients, { fields: [orders.clientId], references: [clients.id] }),

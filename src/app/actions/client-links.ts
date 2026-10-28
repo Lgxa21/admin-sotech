@@ -9,6 +9,7 @@ import { canAccessOrder } from "@/lib/access";
 import { canManage } from "@/lib/perm";
 import { notify, usersWithRole } from "@/lib/notify";
 import { SERVICES, fromInputDate } from "@/lib/labels";
+import { cleanBrief } from "@/lib/briefs";
 
 const token = () => randomBytes(18).toString("base64url");
 const str = (f: FormData, k: string, max = 4000) => {
@@ -98,7 +99,7 @@ export async function submitClientRequest(tok: string, f: FormData) {
   const c = await db.query.clients.findFirst({ where: eq(clients.requestToken, tok) });
   if (!c || !c.active) redirect(`/pedido/${tok}`);
   const title = str(f, "title", 200);
-  const brief = str(f, "brief");
+  const brief = cleanBrief(str(f, "brief"));
   if (!title || !brief) redirect(`/pedido/${tok}?error=${encodeURIComponent("Escribe qué necesitas y una descripción.")}`);
   const [director] = await db.select({ id: users.id }).from(users).where(and(eq(users.role, "DIRECCION"), eq(users.active, true))).orderBy(asc(users.createdAt)).limit(1);
   if (!director) redirect(`/pedido/${tok}?error=${encodeURIComponent("No pudimos registrar el pedido. Escríbenos directamente.")}`);

@@ -3,6 +3,7 @@ import { db, clients } from "@/db";
 import { submitClientRequest } from "@/app/actions/client-links";
 import { SERVICES, SERVICE_LABEL } from "@/lib/labels";
 import PublicShell from "@/components/PublicShell";
+import BriefField from "@/components/BriefField";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Hacer un pedido", robots: { index: false } };
@@ -42,7 +43,7 @@ export default async function Request({ params, searchParams }: { params: Promis
           </div>
           <div><label className="label" htmlFor="dueDate">Para cuándo lo necesitas</label><input id="dueDate" name="dueDate" type="date" className="input" /></div>
         </div>
-        <div><label className="label" htmlFor="brief">Descripción</label><textarea id="brief" name="brief" required rows={5} placeholder="Objetivo, mensaje principal, textos, a quién va dirigido…" className="input" /></div>
+        <div><label className="label" htmlFor="brief">Descripción (responde lo que sepas)</label><BriefField serviceSelectId="serviceType" required /></div>
         <div className="grid gap-4 sm:grid-cols-2">
           <div><label className="label" htmlFor="platform">Dónde se va a usar</label><input id="platform" name="platform" placeholder="Instagram, impreso, web…" className="input" /></div>
           <div><label className="label" htmlFor="name">Tu nombre</label><input id="name" name="name" autoComplete="name" className="input" /></div>

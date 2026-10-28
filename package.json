@@ -20,6 +20,7 @@
     "autoprefixer": "^10.4.20",
     "bcryptjs": "^2.4.3",
     "drizzle-orm": "^0.45.4",
+    "exceljs": "^4.4.0",
     "jose": "^5.9.6",
     "next": "^15.5.28",
     "pg": "^8.13.1",
@@ -38,5 +39,8 @@
   "private": true,
   "engines": {
     "node": ">=20"
+  },
+  "overrides": {
+    "uuid": "11.1.1"
   }
 }

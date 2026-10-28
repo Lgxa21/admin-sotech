@@ -7,6 +7,7 @@ import { requireUser, type SessionUser } from "@/lib/auth";
 import { canAccessOrder } from "@/lib/access";
 import { notify, usersWithRole } from "@/lib/notify";
 import { canManage, isDirector } from "@/lib/perm";
+import { cleanBrief } from "@/lib/briefs";
 import {
   STATUSES, SERVICES, PRIORITIES, STATUS_LABEL, fromInputDate, type Status,
 } from "@/lib/labels";
@@ -24,7 +25,7 @@ function orderFields(f: FormData, u: SessionUser) {
     clientId: str(f, "clientId")!,
     serviceType: pick(SERVICES, str(f, "serviceType"), "OTRO"),
     priority: pick(PRIORITIES, str(f, "priority"), "MEDIA"),
-    brief: str(f, "brief"),
+    brief: cleanBrief(str(f, "brief")),
     copy: str(f, "copy"),
     platform: str(f, "platform"),
     formats: str(f, "formats"),

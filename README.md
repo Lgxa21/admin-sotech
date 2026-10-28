@@ -23,7 +23,12 @@ Sistema de órdenes, tareas y clientes para Sotech - Caracasprint C.A. Esta es l
 - **Tasa BCV automática:** se consulta sola una vez al día (DolarAPI, con respaldo en bcv.today) y se puede corregir a mano.
 - **Avisos fuera del sistema:** notificaciones en el celular o la computadora (app instalada), correo (Resend) y WhatsApp (Cloud API de Meta, solo tareas asignadas y menciones). Cada persona elige sus canales y su número en **Perfil**.
 
-Pendiente: calendario de publicaciones, reportes exportables e integraciones (Fase 2).
+- **Calendario** (Tablero → Calendario): entregas de órdenes y publicaciones programadas en las tareas.
+- **Brief por servicio:** al elegir el tipo de servicio, el brief se llena con sus preguntas; las que quedan sin responder no se guardan.
+- **Biblioteca:** protocolo de comunicación, mensajes predefinidos para copiar, procesos, guía para nuevos y tarifas (solo Dirección y Administración ven las tarifas). Arranca con contenido inicial editable.
+- **Reportes:** órdenes a Excel desde la lista del tablero; finanzas del mes a Excel y reporte para imprimir o guardar en PDF.
+
+Pendiente: activar correo y WhatsApp (faltan las cuentas), integraciones con Google Drive, Calendar, Canva y Profit.
 
 ## Desarrollo
 

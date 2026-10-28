@@ -7,7 +7,7 @@ import { requireUser } from "@/lib/auth";
 import { canAccessOrder } from "@/lib/access";
 import { notify } from "@/lib/notify";
 import { canManage } from "@/lib/perm";
-import { TASK_STATUSES, fromInputDate } from "@/lib/labels";
+import { TASK_STATUSES, fromInputDate, fromInputDateTime } from "@/lib/labels";
 
 const str = (f: FormData, k: string) => {
   const v = f.get(k);
@@ -28,6 +28,7 @@ export async function createTask(orderId: string, f: FormData) {
   await db.insert(tasks).values({
     orderId, title, notes: str(f, "notes"), assigneeId, createdById: u.id, status,
     dueDate: fromInputDate(f.get("dueDate")), checklist,
+    publishAt: fromInputDateTime(f.get("publishAt")), channel: str(f, "channel"),
   });
   const o = await db.query.orders.findFirst({ where: eq(orders.id, orderId) });
   await notify([assigneeId], `Nueva tarea en #${o?.number}: ${title}${status === "POR_ACEPTAR" ? " (confírmala)" : ""}`, { orderId, exclude: u.id, kind: "tarea" });
@@ -80,4 +81,11 @@ export async function deleteTask(taskId: string) {
   if (!canManage(u.role)) return;
   await db.delete(tasks).where(eq(tasks.id, taskId));
   revalidatePath(`/ordenes/${t.orderId}`);
+}
+
+export async function setTaskPublish(taskId: string, f: FormData) {
+  const { t } = await loadTask(taskId);
+  await db.update(tasks).set({ publishAt: fromInputDateTime(f.get("publishAt")), channel: str(f, "channel"), updatedAt: new Date() }).where(eq(tasks.id, taskId));
+  revalidatePath(`/ordenes/${t.orderId}`);
+  revalidatePath("/calendario");
 }

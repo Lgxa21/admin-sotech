@@ -1,11 +1,12 @@
 "use client";
 import { useTransition } from "react";
-import { acceptTask, setTaskStatus, toggleChecklist, deleteTask } from "@/app/actions/tasks";
-import { TASK_STATUSES, TASK_STATUS_LABEL, fmtDate, type TaskStatusT } from "@/lib/labels";
+import { acceptTask, setTaskStatus, toggleChecklist, deleteTask, setTaskPublish } from "@/app/actions/tasks";
+import { TASK_STATUSES, TASK_STATUS_LABEL, fmtDate, fmtDateTime, toInputDateTime, CHANNELS, type TaskStatusT } from "@/lib/labels";
 
 export type TaskView = {
   id: string; title: string; notes: string | null; status: TaskStatusT; dueDate: string | null;
   checklist: { text: string; done: boolean }[]; assignee: string | null; mine: boolean; order?: { id: string; number: number; title: string } | null;
+  publishAt?: string | null; channel?: string | null;
 };
 
 const TONE: Record<TaskStatusT, string> = {
@@ -39,6 +40,9 @@ export default function TaskCard({ t, canDelete }: { t: TaskView; canDelete?: bo
         {t.status !== "PENDIENTE" && t.status !== "LISTA" && <span className={`tag ${TONE[t.status]}`}>{TASK_STATUS_LABEL[t.status]}</span>}
       </div>
 
+      {t.publishAt && (
+        <p className="pl-9 text-sm"><span className="tag mr-2 bg-cyan py-0.5 text-ink">Publica</span>{fmtDateTime(t.publishAt)}{t.channel ? ` · ${t.channel}` : ""}</p>
+      )}
       {t.notes && <p className="whitespace-pre-line text-sm text-muted">{t.notes}</p>}
 
       {t.checklist.length > 0 && !done && (
@@ -68,6 +72,16 @@ export default function TaskCard({ t, canDelete }: { t: TaskView; canDelete?: bo
               </select>
             </>
           ) : null}
+          {!done && (
+            <details className="text-xs">
+              <summary className="cursor-pointer text-muted underline decoration-dotted underline-offset-4 hover:text-ink">{t.publishAt ? "Cambiar publicación" : "Programar publicación"}</summary>
+              <form action={(f) => start(() => setTaskPublish(t.id, f))} className="mt-2 flex flex-wrap items-end gap-2">
+                <input name="publishAt" type="datetime-local" defaultValue={toInputDateTime(t.publishAt)} aria-label="Fecha y hora de publicación" className="input w-auto py-1 text-xs" />
+                <select name="channel" defaultValue={t.channel ?? ""} aria-label="Dónde se publica" className="input w-auto py-1 text-xs"><option value="">—</option>{CHANNELS.map((c) => <option key={c}>{c}</option>)}</select>
+                <button className="btn btn-sm">Guardar</button>
+              </form>
+            </details>
+          )}
           {canDelete && <button className="ml-auto text-xs text-muted hover:text-bad" disabled={pending} onClick={() => { if (confirm(`¿Eliminar la tarea "${t.title}"?`)) start(() => deleteTask(t.id)); }}>Eliminar</button>}
         </div>
       )}

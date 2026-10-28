@@ -8,6 +8,7 @@ import { canManage } from "@/lib/perm";
 import { STATUSES, STATUS_LABEL, SERVICES, SERVICE_LABEL, PRIORITY_LABEL, PRIORITY_TONE, fmtDate, type Status } from "@/lib/labels";
 import StatusBadge from "@/components/StatusBadge";
 import Kanban, { type Card } from "@/components/Kanban";
+import { orderFilters } from "@/lib/order-filters";
 import Icon from "@/components/Icon";
 import MoreFilters from "@/components/MoreFilters";
 import BoardTabs from "@/components/BoardTabs";
@@ -22,20 +23,14 @@ export default async function OrdersPage({ searchParams }: { searchParams: SP })
   if (u.role === "FREELANCER") redirect("/tareas");
   const sp = await searchParams;
   const view = sp.vista === "lista" ? "lista" : "tablero";
-  const filters: (SQL | undefined)[] = [visibleOrders(u)];
-  if (sp.estado && (STATUSES as readonly string[]).includes(sp.estado)) filters.push(eq(orders.status, sp.estado as Status));
-  else if (!sp.cerradas) filters.push(sql`${orders.status} <> 'PAGO_PROVEEDORES'`);
-  if (sp.cliente) filters.push(eq(orders.clientId, sp.cliente));
-  if (sp.responsable) filters.push(eq(orders.ownerId, sp.responsable));
-  if (sp.servicio && (SERVICES as readonly string[]).includes(sp.servicio)) filters.push(eq(orders.serviceType, sp.servicio as (typeof SERVICES)[number]));
-  if (sp.q) filters.push(or(ilike(orders.title, `%${sp.q}%`), ilike(clients.name, `%${sp.q}%`), sql`${orders.number}::text = ${sp.q.replace("#", "")}`));
+  const where = orderFilters(u, sp);
 
   const [rows, clientList, people] = await Promise.all([
     db.select({
       id: orders.id, number: orders.number, title: orders.title, status: orders.status, dueDate: orders.dueDate,
       priority: orders.priority, serviceType: orders.serviceType, client: clients.name, owner: users.name,
     }).from(orders).innerJoin(clients, eq(clients.id, orders.clientId)).leftJoin(users, eq(users.id, orders.ownerId))
-      .where(and(...filters)).orderBy(sql`${orders.dueDate} asc nulls last`, desc(orders.number)),
+      .where(where).orderBy(sql`${orders.dueDate} asc nulls last`, desc(orders.number)),
     db.select({ id: clients.id, name: clients.name }).from(clients).where(eq(clients.active, true)).orderBy(asc(clients.name)),
     db.select({ id: users.id, name: users.name }).from(users).where(eq(users.active, true)).orderBy(asc(users.name)),
   ]);
@@ -98,7 +93,8 @@ export default async function OrdersPage({ searchParams }: { searchParams: SP })
           </table>
         </div>
       )}
-      <p className="text-xs text-muted">
+      <p className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted">
+        <a href={`/exportar/ordenes?${new URLSearchParams(Object.entries(sp).filter(([k, v]) => v && k !== "vista") as [string, string][])}`} className="font-semibold text-ink underline">Exportar estas órdenes a Excel</a>
         {sp.cerradas ? <Link className="font-semibold text-ink underline" href={qs({ cerradas: undefined })}>Ocultar órdenes cerradas</Link> : <Link className="font-semibold text-ink underline" href={qs({ cerradas: "1" })}>Mostrar también las cerradas (pago a proveedores hecho)</Link>}
       </p>
     </div>

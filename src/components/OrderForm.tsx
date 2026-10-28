@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { SERVICES, SERVICE_LABEL, PRIORITIES, PRIORITY_LABEL, toInputDate } from "@/lib/labels";
+import BriefField from "./BriefField";
 
 type Opt = { id: string; name: string };
 type Values = Partial<{
@@ -49,7 +50,7 @@ export default function OrderForm({ action, clients, people, values = {}, money,
 
       <section className="card p-5 grid gap-4">
         <h2 className="h2">Brief</h2>
-        <Field label="Descripción del pedido" id="brief"><textarea id="brief" name="brief" rows={5} defaultValue={v.brief ?? ""} placeholder="Qué pidió el cliente, objetivo, público, mensajes clave…" className="input" /></Field>
+        <Field label="Descripción del pedido (se llena con las preguntas del servicio)" id="brief"><BriefField serviceSelectId="serviceType" defaultValue={v.brief} /></Field>
         <Field label="Copy / textos" id="copy"><textarea id="copy" name="copy" rows={3} defaultValue={v.copy ?? ""} className="input" /></Field>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Red social o plataforma" id="platform"><input id="platform" name="platform" defaultValue={v.platform ?? ""} placeholder="Instagram, TikTok, impresión…" className="input" /></Field>

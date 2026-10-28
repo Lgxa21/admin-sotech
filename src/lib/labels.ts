@@ -97,3 +97,15 @@ export const QUOTE_STATUS: Record<string, { label: string; tone: string }> = {
   RECHAZADA: { label: "Rechazada", tone: "bg-ink text-paper" },
 };
 
+
+// "2026-11-03T10:00" (datetime-local) en hora de Caracas → Date
+export const fromInputDateTime = (s: FormDataEntryValue | null) => {
+  const v = typeof s === "string" ? s.trim() : "";
+  return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(v) ? new Date(`${v}:00-04:00`) : null;
+};
+export const toInputDateTime = (d?: Date | string | null) => {
+  if (!d) return "";
+  const x = new Date(new Date(d).getTime() - 4 * 3600e3); // Caracas no usa horario de verano
+  return x.toISOString().slice(0, 16);
+};
+export const CHANNELS = ["Instagram", "Facebook", "TikTok", "LinkedIn", "X", "YouTube", "Web", "Impreso", "Otro"] as const;

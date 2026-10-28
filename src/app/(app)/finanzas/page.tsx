@@ -59,7 +59,9 @@ export default async function FinanceSummary({ searchParams }: { searchParams: P
       <section aria-labelledby="mes" className="grid gap-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 id="mes" className="h2 first-letter:uppercase">{monthName}</h2>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <a href={`/exportar/finanzas?mes=${month}`} className="btn btn-sm">Excel</a>
+            <Link href={`/reporte?mes=${month}`} target="_blank" className="btn btn-sm">PDF</Link>
             <Link href={`/finanzas?mes=${prevMonth}`} className="btn btn-sm" aria-label="Mes anterior">←</Link>
             {month !== today.slice(0, 7) && <Link href="/finanzas" className="btn btn-sm">Este mes</Link>}
             <Link href={`/finanzas?mes=${nextMonth}`} className="btn btn-sm" aria-label="Mes siguiente">→</Link>

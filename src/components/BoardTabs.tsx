@@ -2,9 +2,10 @@ import Link from "next/link";
 import type { RoleT } from "@/lib/labels";
 
 // Encabezado común de Tablero: órdenes, mis tareas y (para dirección) el equipo.
-export default function BoardTabs({ current, role, children }: { current: "ordenes" | "tareas" | "equipo"; role: RoleT; children?: React.ReactNode }) {
+export default function BoardTabs({ current, role, children }: { current: "ordenes" | "calendario" | "tareas" | "equipo"; role: RoleT; children?: React.ReactNode }) {
   const tabs = [
     { key: "ordenes", href: "/ordenes", label: "Órdenes" },
+    { key: "calendario", href: "/calendario", label: "Calendario" },
     { key: "tareas", href: "/tareas", label: "Mis tareas" },
     ...(role === "DIRECCION" ? [{ key: "equipo", href: "/equipo", label: "Equipo" }] : []),
   ];

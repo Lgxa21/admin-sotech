@@ -6,7 +6,7 @@ import { requireUser } from "@/lib/auth";
 import { canAccessOrder } from "@/lib/access";
 import { canManage, canSeeMoney, isDirector } from "@/lib/perm";
 import {
-  STATUSES, STATUS_LABEL, SERVICE_LABEL, STAGE_GROUPS, groupOf, fmtDateTime, fmtMoney, type Status,
+  STATUSES, STATUS_LABEL, SERVICE_LABEL, STAGE_GROUPS, groupOf, fmtDateTime, fmtMoney, CHANNELS, type Status,
 } from "@/lib/labels";
 import { moveOrderForm, addComment, registerClientChange, raiseUrgency } from "@/app/actions/orders";
 import { createTask } from "@/app/actions/tasks";
@@ -225,6 +225,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
                   <TaskCard key={t.id} canDelete={manager} t={{
                     id: t.id, title: t.title, notes: t.notes, status: t.status, dueDate: t.dueDate?.toISOString() ?? null,
                     checklist: t.checklist, assignee: t.assignee?.name ?? null, mine: t.assigneeId === u.id,
+                    publishAt: t.publishAt?.toISOString() ?? null, channel: t.channel,
                   }} />
                 ))}
               </ul>
@@ -242,6 +243,10 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
                       </select>
                     </div>
                     <div><label className="label" htmlFor="t-due">Fecha límite</label><input id="t-due" name="dueDate" type="date" className="input" /></div>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div><label className="label" htmlFor="t-pub">Publicar el (opcional)</label><input id="t-pub" name="publishAt" type="datetime-local" className="input" /></div>
+                    <div><label className="label" htmlFor="t-ch">Dónde</label><select id="t-ch" name="channel" className="input" defaultValue=""><option value="">—</option>{CHANNELS.map((c) => <option key={c}>{c}</option>)}</select></div>
                   </div>
                   <div><label className="label" htmlFor="t-check">Pasos, uno por línea (opcional)</label><textarea id="t-check" name="checklist" rows={3} className="input" placeholder={"Boceto\nVersión final\nExportar formatos"} /></div>
                   <div><label className="label" htmlFor="t-notes">Notas</label><textarea id="t-notes" name="notes" rows={2} className="input" /></div>
