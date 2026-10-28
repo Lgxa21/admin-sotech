@@ -3,7 +3,7 @@ import { and, count, eq } from "drizzle-orm";
 import { db, notifications } from "@/db";
 import { requireUser } from "@/lib/auth";
 import { ROLE_LABEL } from "@/lib/labels";
-import { canManage, isDirector } from "@/lib/perm";
+import { canManage } from "@/lib/perm";
 import { logout } from "@/app/actions/auth";
 import Nav from "@/components/Nav";
 import Icon from "@/components/Icon";
@@ -13,11 +13,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const u = await requireUser();
   const [{ n }] = await db.select({ n: count() }).from(notifications).where(and(eq(notifications.userId, u.id), eq(notifications.read, false)));
   const items = [
-    ...(u.role !== "FREELANCER" ? [{ href: "/", label: "Hoy", icon: "home" }, { href: "/ordenes", label: "Tablero", icon: "board" }] : []),
-    { href: "/tareas", label: "Mis tareas", icon: "check" },
+    ...(u.role !== "FREELANCER"
+      ? [{ href: "/", label: "Hoy", icon: "home" }, { href: "/ordenes", label: "Tablero", icon: "board", match: ["/tareas", "/equipo"] }]
+      : [{ href: "/tareas", label: "Mis tareas", icon: "check" }]),
     ...(canManage(u.role) ? [{ href: "/clientes", label: "Clientes", icon: "building" }] : []),
     { href: "/avisos", label: "Avisos", icon: "bell", badge: n },
-    ...(isDirector(u.role) ? [{ href: "/equipo", label: "Equipo", icon: "users" }] : []),
   ];
   return (
     <div className="min-h-dvh md:grid md:grid-cols-[232px_minmax(0,1fr)]">

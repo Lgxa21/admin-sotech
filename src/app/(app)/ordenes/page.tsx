@@ -10,6 +10,7 @@ import StatusBadge from "@/components/StatusBadge";
 import Kanban, { type Card } from "@/components/Kanban";
 import Icon from "@/components/Icon";
 import MoreFilters from "@/components/MoreFilters";
+import BoardTabs from "@/components/BoardTabs";
 
 export const metadata = { title: "Tablero" };
 export const dynamic = "force-dynamic";
@@ -46,16 +47,13 @@ export default async function OrdersPage({ searchParams }: { searchParams: SP })
 
   return (
     <div className="grid gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="h1">Tablero</h1>
-        <div className="flex gap-2">
+      <BoardTabs current="ordenes" role={u.role}>
           <div className="inline-flex rounded-full bg-paper p-1" role="group" aria-label="Vista">
             <Link href={qs({ vista: "tablero" })} className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold ${view === "tablero" ? "bg-ink text-paper" : "text-muted hover:text-ink"}`}><Icon name="board" />Tablero</Link>
             <Link href={qs({ vista: "lista" })} className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold ${view === "lista" ? "bg-ink text-paper" : "text-muted hover:text-ink"}`}><Icon name="list" />Lista</Link>
           </div>
           {canManage(u.role) && <Link href="/ordenes/nueva" className="btn-primary">+ Nueva orden</Link>}
-        </div>
-      </div>
+      </BoardTabs>
 
       <form className="card p-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr_1fr_auto] items-end">
         <input type="hidden" name="vista" value={view} />
