@@ -53,7 +53,7 @@ export async function createOrder(f: FormData) {
   if (!data.clientId) throw new Error("Elige un cliente.");
   const [o] = await db.insert(orders).values({ ...data, createdById: u.id }).returning();
   await db.insert(statusChanges).values({ orderId: o.id, from: null, to: "RECIBIDO", userId: u.id, note: "Orden creada" });
-  await notify([o.ownerId], `Te asignaron la orden #${o.number}: ${o.title}`, { orderId: o.id, exclude: u.id });
+  await notify([o.ownerId], `Te asignaron la orden #${o.number}: ${o.title}`, { orderId: o.id, exclude: u.id, kind: "tarea" });
   revalidatePath("/ordenes");
   redirect(`/ordenes/${o.id}`);
 }
@@ -66,7 +66,7 @@ export async function updateOrder(id: string, f: FormData) {
   const data = orderFields(f, u);
   await db.update(orders).set({ ...data, updatedAt: new Date() }).where(eq(orders.id, id));
   if (data.ownerId && data.ownerId !== prev.ownerId) {
-    await notify([data.ownerId], `Te asignaron la orden #${prev.number}: ${data.title}`, { orderId: id, exclude: u.id });
+    await notify([data.ownerId], `Te asignaron la orden #${prev.number}: ${data.title}`, { orderId: id, exclude: u.id, kind: "tarea" });
   }
   revalidatePath(`/ordenes/${id}`);
   redirect(`/ordenes/${id}`);
@@ -98,16 +98,16 @@ export async function moveOrder(id: string, toRaw: string, note?: string) {
   await db.insert(statusChanges).values({ orderId: id, from: o.status, to, userId: u.id, note: note || null });
 
   const label = `#${o.number} ${o.title}`;
-  await notify([o.ownerId], `${label} pasó a "${STATUS_LABEL[to]}"`, { orderId: id, exclude: u.id });
+  await notify([o.ownerId], `${label} pasó a "${STATUS_LABEL[to]}"`, { orderId: id, exclude: u.id, kind: "estado" });
   if (to === "REVISION_INTERNA") {
-    await notify(await usersWithRole("DIRECCION"), `${label} está lista para tu revisión`, { orderId: id, exclude: u.id });
+    await notify(await usersWithRole("DIRECCION"), `${label} está lista para tu revisión`, { orderId: id, exclude: u.id, kind: "estado" });
   }
   if (to === "AJUSTES" && rounds > o.revisionRoundsIncluded) {
     await notify(await usersWithRole("DIRECCION", "ADMINISTRACION"),
-      `${label}: el cliente pidió la ronda ${rounds} y solo hay ${o.revisionRoundsIncluded} incluidas`, { orderId: id, urgent: true });
+      `${label}: el cliente pidió la ronda ${rounds} y solo hay ${o.revisionRoundsIncluded} incluidas`, { orderId: id, urgent: true, kind: "urgencia" });
   }
   if (to === "APROBADO" || to === "ENTREGADO") {
-    await notify(await usersWithRole("ADMINISTRACION"), `${label} está lista para facturar`, { orderId: id, exclude: u.id });
+    await notify(await usersWithRole("ADMINISTRACION"), `${label} está lista para facturar`, { orderId: id, exclude: u.id, kind: "finanzas" });
   }
   revalidatePath("/ordenes");
   revalidatePath(`/ordenes/${id}`);
@@ -136,7 +136,7 @@ export async function addComment(id: string, f: FormData) {
   const o = await db.query.orders.findFirst({ where: eq(orders.id, id) });
   await db.insert(comments).values({ orderId: id, authorId: u.id, body });
   const ids = await mentioned(body);
-  await notify(ids, `${u.name} te mencionó en #${o!.number}: ${body.slice(0, 90)}`, { orderId: id, exclude: u.id });
+  await notify(ids, `${u.name} te mencionó en #${o!.number}: ${body.slice(0, 90)}`, { orderId: id, exclude: u.id, kind: "mencion" });
   revalidatePath(`/ordenes/${id}`);
   redirect(`/ordenes/${id}#comentarios`);
 }
@@ -153,7 +153,7 @@ export async function registerClientChange(id: string, f: FormData) {
     orderId: id, title: `Cambio del cliente: ${body.slice(0, 80)}`, notes: body,
     assigneeId: o.ownerId, createdById: u.id, status: "PENDIENTE",
   });
-  await notify([o.ownerId], `Cambio del cliente en #${o.number}: ${body.slice(0, 90)}`, { orderId: id, exclude: u.id });
+  await notify([o.ownerId], `Cambio del cliente en #${o.number}: ${body.slice(0, 90)}`, { orderId: id, exclude: u.id, kind: "tarea" });
   revalidatePath(`/ordenes/${id}`);
   redirect(`/ordenes/${id}#comentarios`);
 }
@@ -167,7 +167,7 @@ export async function raiseUrgency(id: string, f: FormData) {
   if (!o) redirect("/ordenes");
   await db.update(orders).set({ priority: "URGENTE", updatedAt: new Date() }).where(eq(orders.id, id));
   await db.insert(comments).values({ orderId: id, authorId: u.id, body, kind: "urgencia" });
-  await notify(await usersWithRole("DIRECCION"), `URGENCIA en #${o.number} ${o.title}: ${body.slice(0, 90)}`, { orderId: id, urgent: true, exclude: u.id });
+  await notify(await usersWithRole("DIRECCION"), `URGENCIA en #${o.number} ${o.title}: ${body.slice(0, 90)}`, { orderId: id, urgent: true, exclude: u.id, kind: "urgencia" });
   revalidatePath(`/ordenes/${id}`);
   revalidatePath("/");
   redirect(`/ordenes/${id}#comentarios`);

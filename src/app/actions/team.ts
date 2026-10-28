@@ -6,6 +6,7 @@ import { and, eq } from "drizzle-orm";
 import { db, users, notifications } from "@/db";
 import { requireRole, requireUser } from "@/lib/auth";
 import { ROLES } from "@/lib/labels";
+import { normalizePhone } from "@/lib/channels/whatsapp";
 
 const str = (f: FormData, k: string) => {
   const v = f.get(k);
@@ -23,7 +24,7 @@ export async function createUser(f: FormData) {
   if (exists) redirect("/equipo?error=" + encodeURIComponent("Ya existe una persona con ese correo."));
   const roleRaw = str(f, "role");
   const role = roleRaw && (ROLES as readonly string[]).includes(roleRaw) ? (roleRaw as (typeof ROLES)[number]) : "PRODUCCION";
-  await db.insert(users).values({ name, email, role, area: str(f, "area"), passwordHash: await bcrypt.hash(password, 10) });
+  await db.insert(users).values({ name, email, role, area: str(f, "area"), phone: normalizePhone(str(f, "phone")), passwordHash: await bcrypt.hash(password, 10) });
   revalidatePath("/equipo");
   redirect("/equipo?ok=" + encodeURIComponent(`${name} ya puede entrar con ${email}.`));
 }

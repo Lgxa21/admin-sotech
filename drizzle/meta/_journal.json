@@ -15,6 +15,13 @@
       "when": 1793152711941,
       "tag": "0001_dinero_cotizaciones_igualas_enlaces",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793154272052,
+      "tag": "0002_avisos",
+      "breakpoints": true
     }
   ]
 }

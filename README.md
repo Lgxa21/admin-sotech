@@ -20,7 +20,10 @@ Sistema de órdenes, tareas y clientes para Sotech - Caracasprint C.A. Esta es l
 - **Enlace de pedidos** por cliente (`/pedido/…`): cada pedido entra como orden nueva.
 - **Igualas:** cada mes se crea sola la orden de cada iguala activa, con una tarea por entregable.
 
-Pendiente: notificaciones push y por correo, calendario de publicaciones, reportes exportables e integraciones (Fase 2).
+- **Tasa BCV automática:** se consulta sola una vez al día (DolarAPI, con respaldo en bcv.today) y se puede corregir a mano.
+- **Avisos fuera del sistema:** notificaciones en el celular o la computadora (app instalada), correo (Resend) y WhatsApp (Cloud API de Meta, solo tareas asignadas y menciones). Cada persona elige sus canales y su número en **Perfil**.
+
+Pendiente: calendario de publicaciones, reportes exportables e integraciones (Fase 2).
 
 ## Desarrollo
 
@@ -38,7 +41,14 @@ Cambios al modelo de datos: editar `src/db/schema.ts` y correr `npm run db:gener
 
 ## Producción (Railway)
 
-Variables necesarias: `DATABASE_URL`, `SESSION_SECRET` (cadena larga y aleatoria), `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_NAME`. Opcional: `PUBLIC_URL` (la dirección pública, para los enlaces que se envían al cliente; si falta, se toma de la petición).
+Variables necesarias: `DATABASE_URL`, `SESSION_SECRET` (cadena larga y aleatoria), `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_NAME`. `PUBLIC_URL` (la dirección pública del sistema, para los enlaces de avisos y del cliente).
+
+Avisos:
+- Celular: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (`mailto:…`). Se generan con `npx web-push generate-vapid-keys`.
+- Correo: `RESEND_API_KEY` y `EMAIL_FROM` (p. ej. `Sotech <avisos@sudominio.com>`, con el dominio verificado en Resend).
+- WhatsApp: `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_TEMPLATE` y opcionalmente `WHATSAPP_TEMPLATE_LANG` (por defecto `es`). La plantilla, aprobada por Meta en la categoría Utilidad, lleva dos variables: `{{1}}` el aviso y `{{2}}` el enlace. Ejemplo: "Sotech: {{1}} Ábrelo aquí: {{2}}".
+
+Si un canal no tiene sus variables, simplemente no se usa.
 `npm run build` y `npm start` (aplica migraciones y crea la cuenta inicial si no hay usuarios).
 
 ### Si alguien de Dirección olvida su contraseña

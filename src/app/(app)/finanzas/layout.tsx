@@ -1,7 +1,7 @@
 import { requireRole } from "@/lib/auth";
-import { rateFor } from "@/lib/rates";
+import { rateFor, ensureTodayRate } from "@/lib/rates";
 import { rateText, todayCaracas, fmtDay } from "@/lib/money";
-import { setRate } from "@/app/actions/finance";
+import { setRate, refreshBcvRate } from "@/app/actions/finance";
 import FinanceTabs from "@/components/FinanceTabs";
 import ErrorBanner from "@/components/ErrorBanner";
 import { Suspense } from "react";
@@ -9,6 +9,7 @@ import { Suspense } from "react";
 export default async function FinanceLayout({ children }: { children: React.ReactNode }) {
   await requireRole("DIRECCION", "ADMINISTRACION");
   const today = todayCaracas();
+  await ensureTodayRate();
   const r = await rateFor(today);
   const isToday = r?.day === today;
   return (
@@ -28,6 +29,10 @@ export default async function FinanceLayout({ children }: { children: React.Reac
               <select id="source" name="source" className="input w-32" defaultValue={r?.source ?? "BCV"}><option>BCV</option><option>Paralelo</option><option>Otra</option></select>
             </div>
             <button className="btn-primary">Guardar tasa</button>
+          </form>
+          <form action={refreshBcvRate} className="flex flex-wrap items-center gap-3 px-5 pb-4 text-sm">
+            <button className="btn btn-sm">Traer la del BCV ahora</button>
+            <span className="text-muted">{r?.source ? `Fuente: ${r.source}` : "Se consulta sola una vez al día."}</span>
           </form>
         </details>
       </div>

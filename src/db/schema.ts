@@ -31,9 +31,24 @@ export const users = pgTable("users", {
   passwordHash: text("password_hash").notNull(),
   role: roleEnum("role").notNull().default("PRODUCCION"),
   area: text("area"),
+  phone: text("phone"), // WhatsApp, formato internacional: 584121234567
+  notifyEmail: boolean("notify_email").notNull().default(true),
+  notifyWhatsapp: boolean("notify_whatsapp").notNull().default(true),
+  notifyPush: boolean("notify_push").notNull().default(true),
   active: boolean("active").notNull().default(true),
   createdAt: ts("created_at").notNull().defaultNow(),
 });
+
+// Dispositivos donde la persona activó las notificaciones de la app.
+export const pushSubscriptions = pgTable("push_subscriptions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  endpoint: text("endpoint").notNull().unique(),
+  p256dh: text("p256dh").notNull(),
+  auth: text("auth").notNull(),
+  userAgent: text("user_agent"),
+  createdAt: ts("created_at").notNull().defaultNow(),
+}, (t) => [index("push_user_idx").on(t.userId)]);
 
 export const clients = pgTable("clients", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -128,6 +143,7 @@ export const notifications = pgTable("notifications", {
   userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   orderId: uuid("order_id").references(() => orders.id, { onDelete: "cascade" }),
   text: text("text").notNull(),
+  kind: text("kind").notNull().default("general"), // tarea | mencion | urgencia | cliente | estado | finanzas | general
   urgent: boolean("urgent").notNull().default(false),
   read: boolean("read").notNull().default(false),
   createdAt: ts("created_at").notNull().defaultNow(),

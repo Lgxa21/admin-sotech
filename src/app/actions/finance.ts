@@ -7,7 +7,7 @@ import { requireUser } from "@/lib/auth";
 import { canManage } from "@/lib/perm";
 import { notify, usersWithRole } from "@/lib/notify";
 import { parseAmount, parseRate, toUsd, todayCaracas, PAYMENT_METHODS, usd } from "@/lib/money";
-import { rateFor } from "@/lib/rates";
+import { rateFor, ensureTodayRate, fetchBcvRate, AUTO_SOURCE } from "@/lib/rates";
 
 const str = (f: FormData, k: string) => {
   const v = f.get(k);
@@ -38,7 +38,10 @@ async function amounts(f: FormData, to: string) {
   if (!amount || amount <= 0) fail(to, "Escribe un monto mayor que cero.");
   const currency = str(f, "currency") === "VES" ? "VES" : "USD";
   let rate = parseRate(f.get("rate"));
-  if (currency === "VES" && !rate) rate = (await rateFor(day(f, "date")))?.rate ?? null;
+  if (currency === "VES" && !rate) {
+    await ensureTodayRate();
+    rate = (await rateFor(day(f, "date")))?.rate ?? null;
+  }
   if (currency === "VES" && !rate) fail(to, "Registra la tasa del día en Finanzas antes de cargar montos en bolívares.");
   return { amount, currency: currency as "USD" | "VES", rate: currency === "VES" ? rate : null, amountUsd: toUsd(amount, currency, rate) };
 }
@@ -51,6 +54,19 @@ export async function setRate(f: FormData) {
   const d = day(f, "day");
   await db.insert(exchangeRates).values({ day: d, rate: String(rate), source: str(f, "source") ?? "BCV", createdById: u.id })
     .onConflictDoUpdate({ target: exchangeRates.day, set: { rate: String(rate), source: str(f, "source") ?? "BCV", createdById: u.id } });
+  revalidatePath("/finanzas", "layout");
+  redirect(to);
+}
+
+// Trae la tasa oficial del BCV y la guarda como la de hoy (reemplaza la que hubiera).
+export async function refreshBcvRate(f: FormData) {
+  const u = await manager();
+  const to = back(f, "/finanzas");
+  let rate: number;
+  try { rate = await fetchBcvRate(); } catch { fail(to, "No pudimos consultar la tasa del BCV en este momento. Cárgala a mano o intenta más tarde."); }
+  const today = todayCaracas();
+  await db.insert(exchangeRates).values({ day: today, rate: String(rate), source: AUTO_SOURCE, createdById: u.id })
+    .onConflictDoUpdate({ target: exchangeRates.day, set: { rate: String(rate), source: AUTO_SOURCE, createdById: u.id } });
   revalidatePath("/finanzas", "layout");
   redirect(to);
 }
@@ -71,7 +87,7 @@ export async function addPayment(f: FormData) {
     method, reference: str(f, "reference"), paidOn: day(f, "date"), notes: str(f, "notes"), createdById: u.id,
   });
   if (order) {
-    await notify(await usersWithRole("DIRECCION"), `Cobro de ${usd(m.amountUsd)} registrado en #${order.number} ${order.title}`, { orderId: order.id, exclude: u.id });
+    await notify(await usersWithRole("DIRECCION"), `Cobro de ${usd(m.amountUsd)} registrado en #${order.number} ${order.title}`, { orderId: order.id, exclude: u.id, kind: "finanzas" });
     revalidatePath(`/ordenes/${order.id}`);
   }
   revalidatePath("/finanzas", "layout");

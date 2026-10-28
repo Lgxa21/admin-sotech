@@ -4,6 +4,7 @@ import { requireRole } from "@/lib/auth";
 import { ROLES, ROLE_LABEL } from "@/lib/labels";
 import { createUser, setUserActive, resetPassword } from "@/app/actions/team";
 import BoardTabs from "@/components/BoardTabs";
+import { displayPhone } from "@/lib/channels/whatsapp";
 
 export const metadata = { title: "Equipo" };
 export const dynamic = "force-dynamic";
@@ -53,7 +54,7 @@ export default async function Team({ searchParams }: { searchParams: Promise<{ o
                 <div className="flex flex-wrap items-center gap-3">
                   <div className="min-w-0 flex-[1_1_200px]">
                     <p className="font-bold">{u.name}{u.id === me.id && <span className="font-normal text-muted"> (tú)</span>}</p>
-                    <p className="text-[13px] text-muted">{ROLE_LABEL[u.role]}{u.area ? ` · ${u.area}` : ""} · {u.email}</p>
+                    <p className="text-[13px] text-muted">{ROLE_LABEL[u.role]}{u.area ? ` · ${u.area}` : ""} · {u.email}{u.phone ? ` · ${displayPhone(u.phone)}` : ""}</p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2 text-sm">
                     <span className="font-mono text-lg font-semibold tabular">{l.open}</span>
@@ -108,6 +109,7 @@ export default async function Team({ searchParams }: { searchParams: Promise<{ o
             <select id="role" name="role" className="input" defaultValue="PRODUCCION">{ROLES.map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}</select>
           </div>
           <div><label className="label" htmlFor="area">Área</label><input id="area" name="area" placeholder="Diseño, video, redes…" className="input" /></div>
+          <div><label className="label" htmlFor="phone">WhatsApp (opcional)</label><input id="phone" name="phone" type="tel" placeholder="0412 123 4567" className="input" /></div>
           <div className="sm:col-span-2">
             <label className="label" htmlFor="password">Contraseña inicial</label>
             <input id="password" name="password" type="text" minLength={8} required className="input sm:w-72" placeholder="Mínimo 8 caracteres" />

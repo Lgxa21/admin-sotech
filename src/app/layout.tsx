@@ -5,7 +5,8 @@ export const metadata: Metadata = {
   title: { default: "Sotech · Sistema", template: "%s · Sotech" },
   description: "Órdenes, tareas y clientes de Sotech - Caracasprint",
   manifest: "/manifest.webmanifest",
-  appleWebApp: { capable: true, title: "Sotech", statusBarStyle: "default" },
+  appleWebApp: { capable: true, title: "Sotech", statusBarStyle: "black" },
+  icons: { icon: "/icon.svg", apple: "/apple-touch-icon.png" },
 };
 export const viewport: Viewport = {
   width: "device-width", initialScale: 1, viewportFit: "cover",

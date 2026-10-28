@@ -35,7 +35,7 @@ export async function ensureRetainerOrders(period = currentPeriod()) {
       await db.insert(tasks).values(items.map((i) => ({ orderId: o.id, title: `${i.qty} × ${i.title}`, assigneeId: r.ownerId, createdById: creator.id, status: "PENDIENTE" as const, dueDate: due })));
     }
     const [c] = await db.select({ name: clients.name }).from(clients).where(eq(clients.id, r.clientId));
-    await notify([r.ownerId], `Se creó la orden de ${periodLabel(period)} de la iguala de ${c?.name ?? "un cliente"}`, { orderId: o.id });
+    await notify([r.ownerId], `Se creó la orden de ${periodLabel(period)} de la iguala de ${c?.name ?? "un cliente"}`, { orderId: o.id, kind: "tarea" });
     created++;
   }
   return created;

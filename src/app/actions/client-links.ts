@@ -60,8 +60,8 @@ export async function respondApproval(tok: string, f: FormData) {
     await db.update(orders).set({ status: "APROBADO", statusChangedAt: now, updatedAt: now }).where(eq(orders.id, o.id));
     await db.insert(statusChanges).values({ orderId: o.id, from: o.status, to: "APROBADO", userId: link.createdById, note: `${by} aprobó desde el enlace` });
     await db.insert(comments).values({ orderId: o.id, authorId: link.createdById, kind: "cambio_cliente", body: `${by} aprobó la pieza (ronda ${link.round}).${comment ? `\n\n"${comment}"` : ""}` });
-    await notify([o.ownerId, link.createdById, ...(await usersWithRole("DIRECCION"))], `${by} aprobó #${o.number} ${o.title}`, { orderId: o.id });
-    await notify(await usersWithRole("ADMINISTRACION"), `#${o.number} ${o.title} está lista para facturar`, { orderId: o.id });
+    await notify([o.ownerId, link.createdById, ...(await usersWithRole("DIRECCION"))], `${by} aprobó #${o.number} ${o.title}`, { orderId: o.id, kind: "cliente" });
+    await notify(await usersWithRole("ADMINISTRACION"), `#${o.number} ${o.title} está lista para facturar`, { orderId: o.id, kind: "finanzas" });
   } else {
     const rounds = o.revisionRoundsUsed + 1;
     await db.update(orders).set({ status: "AJUSTES", statusChangedAt: now, updatedAt: now, revisionRoundsUsed: rounds }).where(eq(orders.id, o.id));
@@ -69,8 +69,8 @@ export async function respondApproval(tok: string, f: FormData) {
     await db.insert(comments).values({ orderId: o.id, authorId: link.createdById, kind: "cambio_cliente", body: `${by} pidió cambios (ronda ${rounds}):\n\n${comment}` });
     await db.insert(tasks).values({ orderId: o.id, title: `Cambios del cliente, ronda ${rounds}`, notes: comment, assigneeId: o.ownerId, createdById: link.createdById, status: "PENDIENTE" });
     const over = rounds > o.revisionRoundsIncluded;
-    await notify([o.ownerId, link.createdById], `${by} pidió cambios en #${o.number}: ${comment!.slice(0, 90)}`, { orderId: o.id });
-    if (over) await notify(await usersWithRole("DIRECCION", "ADMINISTRACION"), `#${o.number} ${o.title}: el cliente pidió la ronda ${rounds} y solo hay ${o.revisionRoundsIncluded} incluidas`, { orderId: o.id, urgent: true });
+    await notify([o.ownerId, link.createdById], `${by} pidió cambios en #${o.number}: ${comment!.slice(0, 90)}`, { orderId: o.id, kind: "tarea" });
+    if (over) await notify(await usersWithRole("DIRECCION", "ADMINISTRACION"), `#${o.number} ${o.title}: el cliente pidió la ronda ${rounds} y solo hay ${o.revisionRoundsIncluded} incluidas`, { orderId: o.id, urgent: true, kind: "urgencia" });
   }
   revalidatePath(`/ordenes/${o.id}`);
   redirect(`/aprobar/${tok}?ok=1`);
@@ -110,7 +110,7 @@ export async function submitClientRequest(tok: string, f: FormData) {
     dueDate: fromInputDate(f.get("dueDate")), createdById: director.id, source: "cliente",
   }).returning();
   await db.insert(statusChanges).values({ orderId: o.id, from: null, to: "RECIBIDO", userId: director.id, note: `Pedido de ${c.name} desde su enlace` });
-  await notify(await usersWithRole("DIRECCION", "ADMINISTRACION"), `Nuevo pedido de ${c.name}: ${title}`, { orderId: o.id });
+  await notify(await usersWithRole("DIRECCION", "ADMINISTRACION"), `Nuevo pedido de ${c.name}: ${title}`, { orderId: o.id, kind: "cliente" });
   revalidatePath("/ordenes");
   redirect(`/pedido/${tok}?ok=1`);
 }

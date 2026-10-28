@@ -30,7 +30,7 @@ export async function createTask(orderId: string, f: FormData) {
     dueDate: fromInputDate(f.get("dueDate")), checklist,
   });
   const o = await db.query.orders.findFirst({ where: eq(orders.id, orderId) });
-  await notify([assigneeId], `Nueva tarea en #${o?.number}: ${title}${status === "POR_ACEPTAR" ? " (confírmala)" : ""}`, { orderId, exclude: u.id });
+  await notify([assigneeId], `Nueva tarea en #${o?.number}: ${title}${status === "POR_ACEPTAR" ? " (confírmala)" : ""}`, { orderId, exclude: u.id, kind: "tarea" });
   revalidatePath(`/ordenes/${orderId}`);
   redirect(`/ordenes/${orderId}#tareas`);
 }
@@ -48,7 +48,7 @@ export async function acceptTask(taskId: string) {
   const { u, t, mine } = await loadTask(taskId);
   if (!mine) return;
   await db.update(tasks).set({ status: "PENDIENTE", acceptedAt: new Date(), updatedAt: new Date() }).where(eq(tasks.id, taskId));
-  await notify([t.createdById], `${u.name} aceptó la tarea "${t.title}" (#${t.order.number})`, { orderId: t.orderId, exclude: u.id });
+  await notify([t.createdById], `${u.name} aceptó la tarea "${t.title}" (#${t.order.number})`, { orderId: t.orderId, exclude: u.id, kind: "estado" });
   revalidatePath(`/ordenes/${t.orderId}`);
   revalidatePath("/tareas");
 }
@@ -58,7 +58,7 @@ export async function setTaskStatus(taskId: string, status: string) {
   if (!(TASK_STATUSES as readonly string[]).includes(status) || status === "POR_ACEPTAR") return;
   await db.update(tasks).set({ status: status as (typeof TASK_STATUSES)[number], updatedAt: new Date() }).where(eq(tasks.id, taskId));
   if (status === "LISTA") {
-    await notify([t.createdById, t.order.ownerId], `${u.name} terminó "${t.title}" (#${t.order.number})`, { orderId: t.orderId, exclude: u.id });
+    await notify([t.createdById, t.order.ownerId], `${u.name} terminó "${t.title}" (#${t.order.number})`, { orderId: t.orderId, exclude: u.id, kind: "estado" });
   }
   revalidatePath(`/ordenes/${t.orderId}`);
   revalidatePath("/tareas");

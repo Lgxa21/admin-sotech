@@ -8,6 +8,7 @@ import { logout } from "@/app/actions/auth";
 import Nav from "@/components/Nav";
 import Icon from "@/components/Icon";
 import Logo from "@/components/Logo";
+import SwRegister from "@/components/SwRegister";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const u = await requireUser();
@@ -36,13 +37,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         style={{ paddingTop: "max(12px, env(safe-area-inset-top))", paddingLeft: "max(16px, env(safe-area-inset-left))", paddingRight: "max(16px, env(safe-area-inset-right))" }}>
         <Link href="/" aria-label="Inicio"><Logo size={28} /></Link>
         <Link href="/perfil" className="flex h-8 w-8 items-center justify-center rounded-full bg-yellow text-xs font-bold text-ink" aria-label="Mi perfil">
-          {u.name.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase()}
+          {u.name.replace(/\(.*?\)/g, "").trim().split(/\s+/).map((p) => p[0]).slice(0, 2).join("").toUpperCase()}
         </Link>
       </header>
       <main className="min-w-0 pb-28 pt-6 md:pb-12 md:pt-10" style={{ paddingLeft: "max(16px, env(safe-area-inset-left))", paddingRight: "max(16px, env(safe-area-inset-right))" }}>
         <div className="mx-auto w-full max-w-[1180px] md:px-6 lg:px-10">{children}</div>
       </main>
       <Nav items={items} variant="bottom" />
+      <SwRegister />
     </div>
   );
 }
