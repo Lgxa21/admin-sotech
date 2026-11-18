@@ -1,5 +1,6 @@
 import { addPayment, addCost } from "@/app/actions/finance";
 import { PAYMENT_METHODS, todayCaracas } from "@/lib/money";
+import SubmitButton from "./SubmitButton";
 
 type Opt = { id: string; name: string };
 type OrderOpt = { id: string; label: string; client: string };
@@ -51,7 +52,7 @@ export function PaymentForm({ back, orderId, clients, orders }: { back: string; 
       <AmountFields prefix="p" />
       <PaidFields prefix="p" />
       <p className="text-xs text-muted">Si es en bolívares, se convierte a USD con la tasa de esa fecha. Al elegir una orden, el cliente se toma de ella.</p>
-      <div><button className="btn-primary">Registrar cobro</button></div>
+      <div><SubmitButton pendingLabel="Registrando…">Registrar cobro</SubmitButton></div>
     </form>
   );
 }
@@ -80,7 +81,7 @@ export function CostForm({ back, orderId, orders, suppliers }: { back: string; o
         <PaidFields prefix="c" />
         <p className="text-xs text-muted">Si no lo marcas, queda como pago pendiente y la fecha, el método y la referencia se ignoran.</p>
       </div>
-      <div><button className="btn-primary">Agregar costo</button></div>
+      <div><SubmitButton pendingLabel="Guardando…">Agregar costo</SubmitButton></div>
     </form>
   );
 }

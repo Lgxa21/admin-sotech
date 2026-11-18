@@ -3,6 +3,7 @@ import { asc, desc, eq, ne } from "drizzle-orm";
 import { db, costs, orders, clients, suppliers, users } from "@/db";
 import { usd, money, fmtDay, todayCaracas, PAYMENT_METHODS } from "@/lib/money";
 import { markCostPaid, deleteCost, createSupplier } from "@/app/actions/finance";
+import ConfirmForm from "@/components/ConfirmForm";
 import { CostForm } from "@/components/MoneyForms";
 
 export const metadata = { title: "Pagos" };
@@ -52,8 +53,10 @@ export default async function Costs() {
                     <div><label className="label" htmlFor={`m-${c.id}`}>Método</label><select id={`m-${c.id}`} name="method" className="input w-40">{PAYMENT_METHODS.map((m) => <option key={m}>{m}</option>)}</select></div>
                     <div><label className="label" htmlFor={`r-${c.id}`}>Referencia</label><input id={`r-${c.id}`} name="reference" className="input w-40" /></div>
                     <button className="btn-primary">Guardar</button>
-                    <button formAction={deleteCost.bind(null, c.id, back)} className="ml-auto text-xs text-muted hover:text-bad">Eliminar</button>
                   </form>
+                  <ConfirmForm action={deleteCost.bind(null, c.id, back)} message="¿Eliminar este costo? Quedará registrado en la auditoría." className="mt-2">
+                    <button className="text-xs text-muted hover:text-bad">Eliminar</button>
+                  </ConfirmForm>
                 </details>
               </li>
             ))}

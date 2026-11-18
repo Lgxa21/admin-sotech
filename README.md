@@ -46,7 +46,11 @@ Cambios al modelo de datos: editar `src/db/schema.ts` y correr `npm run db:gener
 
 ## Producción (Railway)
 
-Variables necesarias: `DATABASE_URL`, `SESSION_SECRET` (cadena larga y aleatoria), `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_NAME`. `PUBLIC_URL` (la dirección pública del sistema, para los enlaces de avisos y del cliente).
+Variables necesarias: `DATABASE_URL`, `SESSION_SECRET` (obligatorio, mínimo 16 caracteres; sin él la app no firma sesiones), `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_NAME`. `PUBLIC_URL` (la dirección pública del sistema, para los enlaces de avisos y del cliente).
+
+SSL a Postgres: `DATABASE_SSL=true` verifica el certificado. Solo si el host lo exige, agrega `DATABASE_SSL_INSECURE=true`.
+
+Reset de contraseña por env (`RESET_PASSWORD_EMAIL` + `RESET_PASSWORD`): se aplica **una sola vez** (queda marcado en `audit_events`); bórralas del entorno después.
 
 Avisos:
 - Celular: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (`mailto:…`). Se generan con `npx web-push generate-vapid-keys`.

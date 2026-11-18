@@ -5,6 +5,7 @@ import { db, quotes, quoteItems, clients } from "@/db";
 import { money, fmtDay } from "@/lib/money";
 import { SERVICES, SERVICE_LABEL, QUOTE_STATUS } from "@/lib/labels";
 import { saveQuote, setQuoteStatus, convertQuote, deleteQuote } from "@/app/actions/quotes";
+import ConfirmForm from "@/components/ConfirmForm";
 import QuoteForm from "@/components/QuoteForm";
 
 export const dynamic = "force-dynamic";
@@ -80,7 +81,9 @@ export default async function QuotePage({ params, searchParams }: { params: Prom
             {q.status !== "ENVIADA" && <form action={setQuoteStatus.bind(null, id, "ENVIADA")}><button className="btn btn-sm">Marcar como enviada</button></form>}
             {q.status !== "RECHAZADA" && <form action={setQuoteStatus.bind(null, id, "RECHAZADA")}><button className="btn btn-sm">La rechazó</button></form>}
             {q.status === "RECHAZADA" && <form action={setQuoteStatus.bind(null, id, "BORRADOR")}><button className="btn btn-sm">Volver a borrador</button></form>}
-            <form action={deleteQuote.bind(null, id)} className="ml-auto"><button className="text-xs text-muted hover:text-bad">Eliminar cotización</button></form>
+            <ConfirmForm action={deleteQuote.bind(null, id)} message="¿Eliminar esta cotización?" className="ml-auto">
+              <button className="text-xs text-muted hover:text-bad">Eliminar cotización</button>
+            </ConfirmForm>
           </div>
         </section>
       )}

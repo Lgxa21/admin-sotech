@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { and, count, eq } from "drizzle-orm";
 import { db, notifications } from "@/db";
 import { requireUser } from "@/lib/auth";
@@ -6,9 +7,11 @@ import { ROLE_LABEL } from "@/lib/labels";
 import { canManage } from "@/lib/perm";
 import { logout } from "@/app/actions/auth";
 import Nav from "@/components/Nav";
+import MobileMore from "@/components/MobileMore";
 import Icon from "@/components/Icon";
 import Logo from "@/components/Logo";
 import SwRegister from "@/components/SwRegister";
+import FlashBanner from "@/components/FlashBanner";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const u = await requireUser();
@@ -21,10 +24,22 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     { href: "/biblioteca", label: "Biblioteca", icon: "book" },
     { href: "/avisos", label: "Avisos", icon: "bell", badge: n },
   ];
-  // En el celular los avisos van en la campana de arriba; abajo quedan las secciones.
-  const mobileItems = items.filter((i) => i.href !== "/avisos");
+
+  const primaryKeys = new Set(["/", "/ordenes", "/tareas", "/clientes", "/finanzas"]);
+  let primary = items.filter((i) => primaryKeys.has(i.href)).slice(0, 4);
+  let overflow = items.filter((i) => !primary.some((p) => p.href === i.href));
+  if (primary.length < 3) {
+    const fill = overflow.filter((i) => i.href === "/biblioteca");
+    primary = [...primary, ...fill];
+    overflow = overflow.filter((i) => i.href !== "/biblioteca");
+  }
+  overflow = [...overflow, { href: "/perfil", label: "Mi perfil", icon: "user" }];
+
   return (
     <div className="min-h-dvh md:grid md:grid-cols-[232px_minmax(0,1fr)]">
+      <a href="#contenido" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-full focus:bg-yellow focus:px-4 focus:py-2 focus:font-bold">
+        Saltar al contenido
+      </a>
       <aside className="hidden md:flex md:flex-col sticky top-0 h-dvh bg-ink px-5 py-7 gap-8">
         <Link href="/" aria-label="Inicio"><Logo /></Link>
         <Nav items={items} variant="side" />
@@ -49,10 +64,19 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </Link>
         </div>
       </header>
-      <main className="min-w-0 pb-28 pt-6 md:pb-12 md:pt-10" style={{ paddingLeft: "max(16px, env(safe-area-inset-left))", paddingRight: "max(16px, env(safe-area-inset-right))" }}>
-        <div className="mx-auto w-full max-w-[1180px] md:px-6 lg:px-10">{children}</div>
+      <main id="contenido" className="min-w-0 pb-28 pt-6 md:pb-12 md:pt-10" style={{ paddingLeft: "max(16px, env(safe-area-inset-left))", paddingRight: "max(16px, env(safe-area-inset-right))" }}>
+        <div className="mx-auto grid w-full max-w-[1180px] gap-4 md:px-6 lg:px-10">
+          <Suspense fallback={null}><FlashBanner /></Suspense>
+          {children}
+        </div>
       </main>
-      <Nav items={mobileItems} variant="bottom" />
+      <nav aria-label="Principal" className="md:hidden fixed inset-x-0 bottom-0 z-20 bg-ink"
+        style={{ paddingBottom: "env(safe-area-inset-bottom)", paddingLeft: "env(safe-area-inset-left)", paddingRight: "env(safe-area-inset-right)" }}>
+        <div className="flex justify-around px-1 pt-1.5 pb-1">
+          <Nav items={primary} variant="bottomInline" />
+          <MobileMore items={overflow} />
+        </div>
+      </nav>
       <SwRegister />
     </div>
   );

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import QuoteItems from "./QuoteItems";
+import SubmitButton from "./SubmitButton";
 
 type Opt = { id: string; name: string };
 type V = { clientId?: string; title?: string; currency?: "USD" | "VES"; validUntil?: string | null; notes?: string | null; items?: { description: string; qty: string; unitPrice: string }[] };
@@ -24,7 +25,7 @@ export default function QuoteForm({ action, clients, values = {}, submit, cancel
         <label className="label" htmlFor="notes">Condiciones y notas (las ve el cliente)</label>
         <textarea id="notes" name="notes" rows={3} defaultValue={values.notes ?? ""} placeholder="Ej.: Incluye 2 rondas de cambios. 50% al aprobar y 50% al entregar." className="input" />
       </section>
-      <div className="flex gap-2"><button className="btn-primary">{submit}</button><Link href={cancelHref} className="btn">Cancelar</Link></div>
+      <div className="flex gap-2"><SubmitButton pendingLabel="Guardando…">{submit}</SubmitButton><Link href={cancelHref} className="btn">Cancelar</Link></div>
     </form>
   );
 }

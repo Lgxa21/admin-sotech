@@ -8,23 +8,8 @@ import { canManage } from "@/lib/perm";
 import { notify, usersWithRole } from "@/lib/notify";
 import { parseAmount, parseRate, toUsd, todayCaracas, PAYMENT_METHODS, usd } from "@/lib/money";
 import { rateFor, ensureTodayRate, fetchBcvRate, AUTO_SOURCE } from "@/lib/rates";
-
-const str = (f: FormData, k: string) => {
-  const v = f.get(k);
-  return typeof v === "string" && v.trim() ? v.trim() : null;
-};
-const day = (f: FormData, k: string) => {
-  const v = str(f, k);
-  return v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : todayCaracas();
-};
-const back = (f: FormData, fallback: string) => {
-  const v = str(f, "back");
-  return v && v.startsWith("/") && !v.startsWith("//") ? v : fallback;
-};
-function fail(to: string, msg: string): never {
-  const sep = to.includes("?") ? "&" : "?";
-  redirect(`${to.split("#")[0]}${sep}error=${encodeURIComponent(msg)}${to.includes("#") ? "#" + to.split("#")[1] : ""}`);
-}
+import { str, back, fail, dayField, safePath } from "@/lib/form";
+import { audit } from "@/lib/audit";
 
 async function manager() {
   const u = await requireUser();
@@ -32,7 +17,6 @@ async function manager() {
   return u;
 }
 
-// Moneda, monto y tasa de un formulario, con el equivalente en USD.
 async function amounts(f: FormData, to: string) {
   const amount = parseAmount(f.get("amount"));
   if (!amount || amount <= 0) fail(to, "Escribe un monto mayor que cero.");
@@ -40,7 +24,7 @@ async function amounts(f: FormData, to: string) {
   let rate = parseRate(f.get("rate"));
   if (currency === "VES" && !rate) {
     await ensureTodayRate();
-    rate = (await rateFor(day(f, "date")))?.rate ?? null;
+    rate = (await rateFor(dayField(f, "date", todayCaracas())))?.rate ?? null;
   }
   if (currency === "VES" && !rate) fail(to, "Registra la tasa del día en Finanzas antes de cargar montos en bolívares.");
   return { amount, currency: currency as "USD" | "VES", rate: currency === "VES" ? rate : null, amountUsd: toUsd(amount, currency, rate) };
@@ -51,14 +35,13 @@ export async function setRate(f: FormData) {
   const to = back(f, "/finanzas");
   const rate = parseRate(f.get("rate"));
   if (!rate) fail(to, "Escribe la tasa en bolívares por dólar, por ejemplo 215,40.");
-  const d = day(f, "day");
+  const d = dayField(f, "day", todayCaracas());
   await db.insert(exchangeRates).values({ day: d, rate: String(rate), source: str(f, "source") ?? "BCV", createdById: u.id })
     .onConflictDoUpdate({ target: exchangeRates.day, set: { rate: String(rate), source: str(f, "source") ?? "BCV", createdById: u.id } });
   revalidatePath("/finanzas", "layout");
   redirect(to);
 }
 
-// Trae la tasa oficial del BCV y la guarda como la de hoy (reemplaza la que hubiera).
 export async function refreshBcvRate(f: FormData) {
   const u = await manager();
   const to = back(f, "/finanzas");
@@ -84,7 +67,7 @@ export async function addPayment(f: FormData) {
   const method = methodRaw && (PAYMENT_METHODS as readonly string[]).includes(methodRaw) ? methodRaw : "Otro";
   await db.insert(payments).values({
     clientId, orderId: order?.id ?? null, ...m, amount: String(m.amount), rate: m.rate ? String(m.rate) : null, amountUsd: String(m.amountUsd),
-    method, reference: str(f, "reference"), paidOn: day(f, "date"), notes: str(f, "notes"), createdById: u.id,
+    method, reference: str(f, "reference"), paidOn: dayField(f, "date", todayCaracas()), notes: str(f, "notes"), createdById: u.id,
   });
   if (order) {
     await notify(await usersWithRole("DIRECCION"), `Cobro de ${usd(m.amountUsd)} registrado en #${order.number} ${order.title}`, { orderId: order.id, exclude: u.id, kind: "finanzas" });
@@ -95,11 +78,18 @@ export async function addPayment(f: FormData) {
 }
 
 export async function deletePayment(id: string, backTo: string) {
-  await manager();
+  const u = await manager();
+  const to = safePath(backTo, "/finanzas/cobros");
   const [p] = await db.delete(payments).where(eq(payments.id, id)).returning();
+  if (p) {
+    await audit("payment_deleted", {
+      actorId: u.id, entityType: "payment", entityId: id,
+      detail: { amountUsd: p.amountUsd, clientId: p.clientId, orderId: p.orderId, method: p.method, paidOn: p.paidOn },
+    });
+  }
   if (p?.orderId) revalidatePath(`/ordenes/${p.orderId}`);
   revalidatePath("/finanzas", "layout");
-  redirect(backTo.startsWith("/") ? backTo : "/finanzas/cobros");
+  redirect(to);
 }
 
 export async function addCost(f: FormData) {
@@ -114,7 +104,7 @@ export async function addCost(f: FormData) {
   await db.insert(costs).values({
     orderId, kind: str(f, "kind") === "GASTO" ? "GASTO" : "PROVEEDOR", supplierId: str(f, "supplierId"), concept,
     amount: String(m.amount), currency: m.currency, rate: m.rate ? String(m.rate) : null, amountUsd: String(m.amountUsd),
-    status: paid ? "PAGADO" : "PENDIENTE", paidOn: paid ? day(f, "date") : null, method: paid ? str(f, "method") : null,
+    status: paid ? "PAGADO" : "PENDIENTE", paidOn: paid ? dayField(f, "date", todayCaracas()) : null, method: paid ? str(f, "method") : null,
     reference: paid ? str(f, "reference") : null, createdById: u.id,
   });
   revalidatePath(`/ordenes/${orderId}`);
@@ -127,18 +117,25 @@ export async function markCostPaid(id: string, f: FormData) {
   const c = await db.query.costs.findFirst({ where: eq(costs.id, id) });
   if (!c) redirect("/finanzas/pagos");
   const method = str(f, "method");
-  await db.update(costs).set({ status: "PAGADO", paidOn: day(f, "date"), method: method && (PAYMENT_METHODS as readonly string[]).includes(method) ? method : "Otro", reference: str(f, "reference") }).where(eq(costs.id, id));
+  await db.update(costs).set({ status: "PAGADO", paidOn: dayField(f, "date", todayCaracas()), method: method && (PAYMENT_METHODS as readonly string[]).includes(method) ? method : "Otro", reference: str(f, "reference") }).where(eq(costs.id, id));
   revalidatePath(`/ordenes/${c.orderId}`);
   revalidatePath("/finanzas", "layout");
   redirect(back(f, "/finanzas/pagos"));
 }
 
 export async function deleteCost(id: string, backTo: string) {
-  await manager();
+  const u = await manager();
+  const to = safePath(backTo, "/finanzas/pagos");
   const [c] = await db.delete(costs).where(eq(costs.id, id)).returning();
+  if (c) {
+    await audit("cost_deleted", {
+      actorId: u.id, entityType: "cost", entityId: id,
+      detail: { amountUsd: c.amountUsd, orderId: c.orderId, concept: c.concept, status: c.status },
+    });
+  }
   if (c) revalidatePath(`/ordenes/${c.orderId}`);
   revalidatePath("/finanzas", "layout");
-  redirect(backTo.startsWith("/") ? backTo : "/finanzas/pagos");
+  redirect(to);
 }
 
 export async function createSupplier(f: FormData) {

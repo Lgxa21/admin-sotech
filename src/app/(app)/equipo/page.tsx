@@ -72,7 +72,7 @@ export default async function Team({ searchParams }: { searchParams: Promise<{ o
                       <summary className="cursor-pointer text-muted underline decoration-dotted underline-offset-4 hover:text-ink">Cambiar contraseña</summary>
                       <form action={resetPassword.bind(null, u.id)} className="mt-2 flex flex-wrap gap-2">
                         <label className="sr-only" htmlFor={`pw-${u.id}`}>Nueva contraseña</label>
-                        <input id={`pw-${u.id}`} name="password" type="text" minLength={8} required className="input w-52" placeholder="Mínimo 8 caracteres" />
+                        <input id={`pw-${u.id}`} name="password" type="password" minLength={8} required className="input w-52" placeholder="Mínimo 8 caracteres" autoComplete="new-password" />
                         <button className="btn btn-sm">Guardar</button>
                       </form>
                     </details>
@@ -112,7 +112,7 @@ export default async function Team({ searchParams }: { searchParams: Promise<{ o
           <div><label className="label" htmlFor="phone">WhatsApp (opcional)</label><input id="phone" name="phone" type="tel" placeholder="0412 123 4567" className="input" /></div>
           <div className="sm:col-span-2">
             <label className="label" htmlFor="password">Contraseña inicial</label>
-            <input id="password" name="password" type="text" minLength={8} required className="input sm:w-72" placeholder="Mínimo 8 caracteres" />
+            <input id="password" name="password" type="password" minLength={8} required className="input sm:w-72" placeholder="Mínimo 8 caracteres" autoComplete="new-password" />
             <p className="mt-1.5 text-xs text-muted">Compártela por un medio privado. La persona puede cambiarla desde su perfil.</p>
           </div>
           <ul className="grid gap-1 text-xs text-muted sm:col-span-2">{ROLES.map((r) => <li key={r}><b className="font-semibold text-ink">{ROLE_LABEL[r]}:</b> {ROLE_HELP[r]}</li>)}</ul>

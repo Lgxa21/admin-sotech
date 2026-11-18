@@ -8,7 +8,7 @@ export type Card = { id: string; number: number; title: string; client: string; 
 
 const DONE: Status[] = ["ENTREGADO", "FACTURADO", "PAGO_PROVEEDORES"];
 
-export default function Kanban({ cards }: { cards: Card[] }) {
+export default function Kanban({ cards, canCreate }: { cards: Card[]; canCreate?: boolean }) {
   const [items, setItems] = useOptimistic(cards, (state, m: { id: string; to: Status }) => state.map((c) => (c.id === m.id ? { ...c, status: m.to } : c)));
   const [, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -23,6 +23,16 @@ export default function Kanban({ cards }: { cards: Card[] }) {
     });
   };
 
+  if (!cards.length) {
+    return (
+      <div className="card grid gap-3 px-6 py-10 text-center">
+        <p className="text-muted">No hay órdenes con estos filtros.</p>
+        {canCreate && <p><Link href="/ordenes/nueva" className="btn-primary">+ Nueva orden</Link></p>}
+        <p className="text-xs text-muted"><Link href="/ordenes?vista=tablero" className="font-semibold underline">Limpiar filtros</Link></p>
+      </div>
+    );
+  }
+
   return (
     <div className="grid gap-3">
       {error && <p role="alert" className="card px-5 py-3 text-sm font-semibold text-bad">{error}</p>}
@@ -35,13 +45,14 @@ export default function Kanban({ cards }: { cards: Card[] }) {
               onDragOver={(e) => { e.preventDefault(); setOver(s); }}
               onDragLeave={() => setOver(null)}
               onDrop={(e) => { e.preventDefault(); setOver(null); const id = e.dataTransfer.getData("text/plain"); if (id) move(id, s); }}
-              className={`w-[272px] shrink-0 snap-start rounded-[18px] p-2.5 transition-colors ${over === s ? "bg-yellow/30" : "bg-[#E9E7E0]"}`}>
+              className={`w-[272px] shrink-0 snap-start rounded-[18px] p-2.5 transition-colors ${over === s ? "bg-yellow/30" : "bg-canvas"}`}>
               <h2 className="flex items-center gap-2 px-1.5 pb-2.5 pt-1 text-[13px] font-bold">
                 <span className={`h-3 w-3 rounded-full ${g.bar}`} aria-hidden="true" />
                 <span className="flex-1">{STATUS_LABEL[s]}</span>
                 <span className="font-mono text-muted tabular">{col.length}</span>
               </h2>
               <ul className="grid min-h-16 gap-2">
+                {col.length === 0 && <li className="px-1.5 py-3 text-center text-[12px] text-muted">Vacía</li>}
                 {col.map((c) => {
                   const late = c.dueDate && new Date(c.dueDate) < new Date() && !DONE.includes(c.status);
                   return (
@@ -58,7 +69,7 @@ export default function Kanban({ cards }: { cards: Card[] }) {
                       {c.owner && <p className="truncate text-xs text-muted">{c.owner}</p>}
                       <label className="sr-only" htmlFor={`mv-${c.id}`}>Mover a</label>
                       <select id={`mv-${c.id}`} value={c.status} onChange={(e) => move(c.id, e.target.value as Status)}
-                        className="input rounded-full py-1 text-xs md:hidden">
+                        className="input rounded-full py-1 text-xs">
                         {STATUSES.map((x) => <option key={x} value={x}>{STATUS_LABEL[x]}</option>)}
                       </select>
                     </li>
@@ -69,7 +80,7 @@ export default function Kanban({ cards }: { cards: Card[] }) {
           );
         })}
       </div>
-      <p className="text-xs text-muted">Arrastra una tarjeta para cambiarla de etapa. En el celular, usa el selector de cada tarjeta.</p>
+      <p className="text-xs text-muted">Arrastra una tarjeta o usa el selector de etapa (teclado y celular).</p>
     </div>
   );
 }

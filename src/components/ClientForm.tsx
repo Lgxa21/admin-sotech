@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { toInputDate } from "@/lib/labels";
+import SubmitButton from "./SubmitButton";
 
 type V = Partial<{ name: string; contactName: string | null; contactPhone: string | null; contactEmail: string | null; taxId: string | null;
   brandManualUrl: string | null; socialNotes: string | null; contractNotes: string | null; renewalDate: Date | null; notes: string | null }>;
@@ -28,7 +29,7 @@ export default function ClientForm({ action, values = {}, submit, cancelHref, ne
         <F id="socialNotes" label="Redes sociales que manejamos"><textarea id="socialNotes" name="socialNotes" rows={2} defaultValue={v.socialNotes ?? ""} placeholder="Cuentas y usuarios. No guardes contraseñas aquí: usa un gestor de contraseñas." className="input" /></F>
         <F id="notes" label="Notas (tono con el cliente, preferencias…)"><textarea id="notes" name="notes" rows={2} defaultValue={v.notes ?? ""} className="input" /></F>
       </section>
-      <div className="flex gap-2"><button className="btn-primary">{submit}</button><Link href={cancelHref} className="btn">Cancelar</Link></div>
+      <div className="flex gap-2"><SubmitButton pendingLabel="Guardando…">{submit}</SubmitButton><Link href={cancelHref} className="btn">Cancelar</Link></div>
     </form>
   );
 }

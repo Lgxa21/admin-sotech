@@ -8,7 +8,7 @@ export default function MoreFilters({ active, children }: { active: boolean; chi
     <>
       <div className={open ? "contents" : "hidden lg:contents"}>{children}</div>
       <button type="button" onClick={() => setOpen((o) => !o)} className="btn lg:hidden" aria-expanded={open}>
-        {open ? "Menos filtros" : "Más filtros"}
+        {open ? "Menos filtros" : active ? "Más filtros · activos" : "Más filtros"}
       </button>
     </>
   );

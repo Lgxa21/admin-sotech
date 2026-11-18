@@ -1,11 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { and, asc, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { db, orders, clients, users } from "@/db";
 import { requireUser } from "@/lib/auth";
-import { visibleOrders } from "@/lib/access";
 import { canManage } from "@/lib/perm";
-import { STATUSES, STATUS_LABEL, SERVICES, SERVICE_LABEL, PRIORITY_LABEL, PRIORITY_TONE, fmtDate, type Status } from "@/lib/labels";
+import { STATUSES, STATUS_LABEL, SERVICES, SERVICE_LABEL, PRIORITY_LABEL, PRIORITY_TONE, fmtDate } from "@/lib/labels";
 import StatusBadge from "@/components/StatusBadge";
 import Kanban, { type Card } from "@/components/Kanban";
 import { orderFilters } from "@/lib/order-filters";
@@ -16,6 +15,9 @@ import BoardTabs from "@/components/BoardTabs";
 export const metadata = { title: "Tablero" };
 export const dynamic = "force-dynamic";
 
+const PAGE_SIZE = 50;
+const KANBAN_CAP = 200;
+
 type SP = Promise<Record<string, string | undefined>>;
 
 export default async function OrdersPage({ searchParams }: { searchParams: SP }) {
@@ -24,16 +26,23 @@ export default async function OrdersPage({ searchParams }: { searchParams: SP })
   const sp = await searchParams;
   const view = sp.vista === "lista" ? "lista" : "tablero";
   const where = orderFilters(u, sp);
+  const page = Math.max(1, Number(sp.pagina) || 1);
+  const offset = (page - 1) * PAGE_SIZE;
 
-  const [rows, clientList, people] = await Promise.all([
-    db.select({
-      id: orders.id, number: orders.number, title: orders.title, status: orders.status, dueDate: orders.dueDate,
-      priority: orders.priority, serviceType: orders.serviceType, client: clients.name, owner: users.name,
-    }).from(orders).innerJoin(clients, eq(clients.id, orders.clientId)).leftJoin(users, eq(users.id, orders.ownerId))
-      .where(where).orderBy(sql`${orders.dueDate} asc nulls last`, desc(orders.number)),
+  const base = db.select({
+    id: orders.id, number: orders.number, title: orders.title, status: orders.status, dueDate: orders.dueDate,
+    priority: orders.priority, serviceType: orders.serviceType, client: clients.name, owner: users.name,
+  }).from(orders).innerJoin(clients, eq(clients.id, orders.clientId)).leftJoin(users, eq(users.id, orders.ownerId))
+    .where(where).orderBy(sql`${orders.dueDate} asc nulls last`, desc(orders.number));
+
+  const [rows, totalRow, clientList, people] = await Promise.all([
+    view === "lista" ? base.limit(PAGE_SIZE).offset(offset) : base.limit(KANBAN_CAP),
+    db.select({ n: sql<number>`count(*)::int` }).from(orders).innerJoin(clients, eq(clients.id, orders.clientId)).where(where),
     db.select({ id: clients.id, name: clients.name }).from(clients).where(eq(clients.active, true)).orderBy(asc(clients.name)),
     db.select({ id: users.id, name: users.name }).from(users).where(eq(users.active, true)).orderBy(asc(users.name)),
   ]);
+  const total = Number(totalRow[0]?.n ?? 0);
+  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const qs = (patch: Record<string, string | undefined>) => {
     const p = new URLSearchParams(Object.entries({ ...sp, ...patch }).filter(([, v]) => v) as [string, string][]);
@@ -44,8 +53,8 @@ export default async function OrdersPage({ searchParams }: { searchParams: SP })
     <div className="grid gap-6">
       <BoardTabs current="ordenes" role={u.role}>
           <div className="inline-flex rounded-full bg-paper p-1" role="group" aria-label="Vista">
-            <Link href={qs({ vista: "tablero" })} className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold ${view === "tablero" ? "bg-ink text-paper" : "text-muted hover:text-ink"}`}><Icon name="board" />Tablero</Link>
-            <Link href={qs({ vista: "lista" })} className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold ${view === "lista" ? "bg-ink text-paper" : "text-muted hover:text-ink"}`}><Icon name="list" />Lista</Link>
+            <Link href={qs({ vista: "tablero", pagina: undefined })} className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold ${view === "tablero" ? "bg-ink text-paper" : "text-muted hover:text-ink"}`}><Icon name="board" />Tablero</Link>
+            <Link href={qs({ vista: "lista", pagina: "1" })} className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold ${view === "lista" ? "bg-ink text-paper" : "text-muted hover:text-ink"}`}><Icon name="list" />Lista</Link>
           </div>
           {canManage(u.role) && <Link href="/ordenes/nueva" className="btn-primary">+ Nueva orden</Link>}
       </BoardTabs>
@@ -63,7 +72,12 @@ export default async function OrdersPage({ searchParams }: { searchParams: SP })
       </form>
 
       {view === "tablero" ? (
-        <Kanban cards={rows.map<Card>((r) => ({ ...r, dueDate: r.dueDate?.toISOString() ?? null }))} />
+        <>
+          <Kanban canCreate={canManage(u.role)} cards={rows.map<Card>((r) => ({ ...r, dueDate: r.dueDate?.toISOString() ?? null }))} />
+          {total > KANBAN_CAP && (
+            <p className="text-sm text-muted">Mostrando las {KANBAN_CAP} más próximas de {total}. Usa la vista Lista o filtra para ver el resto.</p>
+          )}
+        </>
       ) : (
         <div className="card overflow-x-auto">
           <table className="w-full min-w-[760px] text-sm">
@@ -88,13 +102,29 @@ export default async function OrdersPage({ searchParams }: { searchParams: SP })
                   </tr>
                 );
               })}
-              {!rows.length && <tr><td colSpan={7} className="px-4 py-8 text-center text-muted">No hay órdenes con estos filtros.</td></tr>}
+              {!rows.length && (
+                <tr>
+                  <td colSpan={7} className="px-4 py-8 text-center text-muted">
+                    No hay órdenes con estos filtros.
+                    {canManage(u.role) && <>{" "}<Link href="/ordenes/nueva" className="font-semibold underline">Nueva orden</Link></>}
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
+          {pages > 1 && (
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-4 py-3 text-sm">
+              <span className="text-muted">{total} órdenes · página {page} de {pages}</span>
+              <div className="flex gap-2">
+                {page > 1 && <Link href={qs({ pagina: String(page - 1) })} className="btn btn-sm">Anterior</Link>}
+                {page < pages && <Link href={qs({ pagina: String(page + 1) })} className="btn btn-sm">Siguiente</Link>}
+              </div>
+            </div>
+          )}
         </div>
       )}
       <p className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted">
-        <a href={`/exportar/ordenes?${new URLSearchParams(Object.entries(sp).filter(([k, v]) => v && k !== "vista") as [string, string][])}`} className="font-semibold text-ink underline">Exportar estas órdenes a Excel</a>
+        <a href={`/exportar/ordenes?${new URLSearchParams(Object.entries(sp).filter(([k, v]) => v && k !== "vista" && k !== "pagina") as [string, string][])}`} className="font-semibold text-ink underline">Exportar estas órdenes a Excel</a>
         {sp.cerradas ? <Link className="font-semibold text-ink underline" href={qs({ cerradas: undefined })}>Ocultar órdenes cerradas</Link> : <Link className="font-semibold text-ink underline" href={qs({ cerradas: "1" })}>Mostrar también las cerradas (pago a proveedores hecho)</Link>}
       </p>
     </div>

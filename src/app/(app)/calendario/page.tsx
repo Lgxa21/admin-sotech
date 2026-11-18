@@ -119,12 +119,39 @@ export default async function Calendar({ searchParams }: { searchParams: Promise
                       </Link>
                     </li>
                   ))}
-                  {list.length > 4 && <li className="px-1.5 text-[11px] font-semibold text-muted">+{list.length - 4} más</li>}
+                  {list.length > 4 && (
+                    <li>
+                      <a href={`#dia-${d}`} className="px-1.5 text-[11px] font-semibold text-ink underline">+{list.length - 4} más</a>
+                    </li>
+                  )}
                 </ul>
               </div>
             );
           })}
         </div>
+        {!items.length && <p className="px-6 py-10 text-center text-muted">No hay entregas ni publicaciones este mes.</p>}
+      </div>
+
+      {/* Destino de “+N más” en escritorio (solo días con más de 4 ítems) */}
+      <div className="hidden md:grid md:gap-4">
+        {daysWithItems.filter((d) => (byDay.get(d)?.length ?? 0) > 4).map((d) => (
+          <section key={`desk-${d}`} id={`dia-${d}`} className="grid scroll-mt-24 gap-2">
+            <h3 className={`eyebrow ${d === today ? "!text-ink" : ""}`}>{new Date(`${d}T12:00:00-04:00`).toLocaleDateString("es-VE", { weekday: "long", day: "numeric", month: "long", timeZone: TZ })}{d === today ? " · hoy" : ""}</h3>
+            <ul className="grid gap-2 sm:grid-cols-2">
+              {(byDay.get(d) ?? []).map((it) => (
+                <li key={it.key}>
+                  <Link href={it.href} className="card flex items-center gap-3 px-4 py-3">
+                    <span className={`h-3 w-3 flex-none rounded-full ${it.kind === "entrega" ? it.bar : "bg-cyan"}`} />
+                    <span className="min-w-0 flex-1">
+                      <span className={`block truncate font-bold ${it.done ? "text-muted line-through" : ""}`}>{it.title}</span>
+                      <span className="block truncate text-[13px] text-muted">{it.kind === "entrega" ? "Entrega" : `Publica${it.time ? ` ${it.time}` : ""}`} · {it.sub}</span>
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
       </div>
 
       {/* Celular: agenda por día */}

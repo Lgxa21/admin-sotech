@@ -5,7 +5,7 @@ import Icon from "./Icon";
 
 type Item = { href: string; label: string; icon: string; badge?: number; match?: string[] };
 
-export default function Nav({ items, variant }: { items: Item[]; variant: "side" | "bottom" }) {
+export default function Nav({ items, variant }: { items: Item[]; variant: "side" | "bottom" | "bottomInline" }) {
   const path = usePathname();
   const isActive = (it: Item) => (it.href === "/" ? path === "/" : [it.href, ...(it.match ?? [])].some((h) => path.startsWith(h)));
 
@@ -22,18 +22,22 @@ export default function Nav({ items, variant }: { items: Item[]; variant: "side"
     </nav>
   );
 
+  const links = items.map((it) => (
+    <Link key={it.href} href={it.href} aria-current={isActive(it) ? "page" : undefined}
+      className={`relative flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-xl py-1.5 text-[11px] ${isActive(it) ? "bg-yellow text-ink font-bold" : "text-canvas/80"}`}>
+      <Icon name={it.icon} className="h-5 w-5" />
+      <span className="truncate">{it.label}</span>
+      {!!it.badge && <span className="absolute right-[22%] top-1 h-2.5 w-2.5 rounded-full bg-magenta ring-2 ring-ink" />}
+    </Link>
+  ));
+
+  if (variant === "bottomInline") return <>{links}</>;
+
   return (
     <nav aria-label="Principal" className="md:hidden fixed inset-x-0 bottom-0 z-20 bg-ink"
       style={{ paddingBottom: "env(safe-area-inset-bottom)", paddingLeft: "env(safe-area-inset-left)", paddingRight: "env(safe-area-inset-right)" }}>
       <div className="flex justify-around px-1 pt-1.5 pb-1">
-        {items.map((it) => (
-          <Link key={it.href} href={it.href} aria-current={isActive(it) ? "page" : undefined}
-            className={`relative flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-xl py-1.5 text-[11px] ${isActive(it) ? "bg-yellow text-ink font-bold" : "text-canvas/80"}`}>
-            <Icon name={it.icon} className="h-5 w-5" />
-            <span className="truncate">{it.label}</span>
-            {!!it.badge && <span className="absolute right-[22%] top-1 h-2.5 w-2.5 rounded-full bg-magenta ring-2 ring-ink" />}
-          </Link>
-        ))}
+        {links}
       </div>
     </nav>
   );

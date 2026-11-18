@@ -18,6 +18,8 @@ import { deletePayment, deleteCost, markCostPaid } from "@/app/actions/finance";
 import { createApprovalLink, cancelApprovalLink } from "@/app/actions/client-links";
 import { baseUrl } from "@/lib/url";
 import CopyLink from "@/components/CopyLink";
+import ConfirmForm from "@/components/ConfirmForm";
+import SubmitButton from "@/components/SubmitButton";
 
 export const dynamic = "force-dynamic";
 const TZ = "America/Caracas";
@@ -51,10 +53,9 @@ const avatarTone = (name: string) => AVATAR[[...name].reduce((a, c) => a + c.cha
 const initials = (name: string) => name.replace(/\(.*?\)/g, "").trim().split(/\s+/).map((p) => p[0]).slice(0, 2).join("").toUpperCase();
 const longDate = (d: Date | null) => d ? d.toLocaleDateString("es-VE", { weekday: "long", day: "numeric", month: "long", timeZone: TZ }) : "Sin fecha";
 
-export default async function OrderPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ error?: string }> }) {
+export default async function OrderPage({ params }: { params: Promise<{ id: string }> }) {
   const u = await requireUser();
   const { id } = await params;
-  const { error } = await searchParams;
   if (!(await canAccessOrder(u, id))) notFound();
 
   const o = await db.query.orders.findFirst({ where: eq(orders.id, id), with: { client: true, owner: true } });
@@ -115,8 +116,6 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
         </div>
       </header>
 
-      {error && <p role="alert" className="card px-5 py-3 text-sm font-semibold text-bad">{error}</p>}
-
       <section aria-label="Etapa de la orden" className="card grid gap-5 px-6 py-6">
         <div className="grid grid-cols-4 gap-1.5">
           {STAGE_GROUPS.map((g, gi) => {
@@ -137,11 +136,11 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
         </div>
         <p className="text-sm font-bold sm:hidden">Ahora: {STATUS_LABEL[o.status]}</p>
         {!freelancer && (
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="sticky top-[52px] z-10 -mx-2 flex flex-wrap items-center gap-3 rounded-[14px] bg-paper/95 px-2 py-2 backdrop-blur md:static md:bg-transparent md:p-0 md:backdrop-blur-none">
             {moves.map((m) => (
               <form key={m.to} action={moveOrderForm.bind(null, id)}>
                 <input type="hidden" name="to" value={m.to} />
-                <button className={m.primary ? "btn-primary px-6 py-3 text-[15px]" : "btn px-5 py-2.5 text-[15px]"}>{m.label}</button>
+                <SubmitButton className={m.primary ? "btn-primary px-6 py-3 text-[15px]" : "btn px-5 py-2.5 text-[15px]"} pendingLabel="Moviendo…">{m.label}</SubmitButton>
               </form>
             ))}
             {o.status === "REVISION_INTERNA" && !isDirector(u.role) && <p className="text-sm text-muted">Esperando la aprobación de dirección.</p>}
@@ -280,7 +279,9 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
                         <span className="font-mono text-[13px]">{fmtDay(p.paidOn)}</span>
                         <span className="min-w-0 flex-1">{p.method}{p.reference && <span className="text-muted"> · Ref. {p.reference}</span>}</span>
                         <span className="font-mono font-semibold">{money(p.amount, p.currency)}</span>
-                        <form action={deletePayment.bind(null, p.id, `/ordenes/${id}#dinero`)}><button className="text-xs text-muted hover:text-bad" aria-label="Eliminar cobro">✕</button></form>
+                        <ConfirmForm action={deletePayment.bind(null, p.id, `/ordenes/${id}#dinero`)} message="¿Eliminar este cobro? Quedará registrado en la auditoría.">
+                          <button className="text-xs text-muted hover:text-bad" aria-label="Eliminar cobro">✕</button>
+                        </ConfirmForm>
                       </li>
                     ))}
                   </ul>
@@ -303,17 +304,21 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
                           <span className="font-mono font-semibold">{money(c.amount, c.currency)}</span>
                         </div>
                         {c.status === "PENDIENTE" ? (
-                          <details>
-                            <summary className="w-fit cursor-pointer text-xs font-bold underline decoration-dotted underline-offset-4">Marcar como pagado</summary>
-                            <form action={markCostPaid.bind(null, c.id)} className="mt-2 flex flex-wrap items-end gap-2">
-                              <input type="hidden" name="back" value={`/ordenes/${id}#dinero`} />
-                              <input name="date" type="date" defaultValue={todayCaracas()} className="input w-40" aria-label="Fecha de pago" />
-                              <select name="method" className="input w-40" aria-label="Método">{PAYMENT_METHODS.map((m) => <option key={m}>{m}</option>)}</select>
-                              <input name="reference" placeholder="Referencia" className="input w-36" aria-label="Referencia" />
-                              <button className="btn btn-sm">Guardar</button>
-                              <button formAction={deleteCost.bind(null, c.id, `/ordenes/${id}#dinero`)} className="ml-auto text-xs text-muted hover:text-bad">Eliminar</button>
-                            </form>
-                          </details>
+                          <div className="grid gap-2">
+                            <details>
+                              <summary className="w-fit cursor-pointer text-xs font-bold underline decoration-dotted underline-offset-4">Marcar como pagado</summary>
+                              <form action={markCostPaid.bind(null, c.id)} className="mt-2 flex flex-wrap items-end gap-2">
+                                <input type="hidden" name="back" value={`/ordenes/${id}#dinero`} />
+                                <input name="date" type="date" defaultValue={todayCaracas()} className="input w-40" aria-label="Fecha de pago" />
+                                <select name="method" className="input w-40" aria-label="Método">{PAYMENT_METHODS.map((m) => <option key={m}>{m}</option>)}</select>
+                                <input name="reference" placeholder="Referencia" className="input w-36" aria-label="Referencia" />
+                                <button className="btn btn-sm">Guardar</button>
+                              </form>
+                            </details>
+                            <ConfirmForm action={deleteCost.bind(null, c.id, `/ordenes/${id}#dinero`)} message="¿Eliminar este costo? Quedará registrado en la auditoría.">
+                              <button className="text-xs text-muted hover:text-bad">Eliminar costo</button>
+                            </ConfirmForm>
+                          </div>
                         ) : <p className="text-xs text-muted">Pagado el {fmtDay(c.paidOn)}{c.method ? ` · ${c.method}` : ""}{c.reference ? ` · Ref. ${c.reference}` : ""}</p>}
                       </li>
                     ))}
