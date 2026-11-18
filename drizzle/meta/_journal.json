@@ -29,6 +29,13 @@
       "when": 1793158300641,
       "tag": "0003_calendario_biblioteca",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794900000000,
+      "tag": "0004_revision_hardening",
+      "breakpoints": true
     }
   ]
 }

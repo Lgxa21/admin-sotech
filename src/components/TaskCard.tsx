@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useTransition } from "react";
 import { acceptTask, setTaskStatus, toggleChecklist, deleteTask, setTaskPublish } from "@/app/actions/tasks";
 import { TASK_STATUSES, TASK_STATUS_LABEL, fmtDate, fmtDateTime, toInputDateTime, CHANNELS, type TaskStatusT } from "@/lib/labels";
@@ -31,7 +32,7 @@ export default function TaskCard({ t, canDelete }: { t: TaskView; canDelete?: bo
         <div className="min-w-0 flex-[1_1_200px]">
           <p className={`font-bold ${done ? "text-muted line-through" : ""}`}>{t.title}</p>
           <p className="text-[13px] text-muted">
-            {t.order && <><a href={`/ordenes/${t.order.id}#tareas`} className="font-semibold text-ink underline">#{t.order.number} {t.order.title}</a> · </>}
+            {t.order && <><Link href={`/ordenes/${t.order.id}#tareas`} className="font-semibold text-ink underline">#{t.order.number} {t.order.title}</Link> · </>}
             {t.assignee ?? "Sin asignar"}
             {t.dueDate && <> · <span className={late ? "font-bold text-bad" : ""}>{late ? "vencida " : "entrega "}{fmtDate(t.dueDate)}</span></>}
             {t.checklist.length > 0 && <> · {steps}/{t.checklist.length} pasos</>}

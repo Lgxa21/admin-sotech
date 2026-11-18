@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { and, asc, count, eq, gte, inArray, lt, lte, ne, or, sql, type SQL } from "drizzle-orm";
 import { db, orders, tasks, clients, users } from "@/db";
 import { requireUser } from "@/lib/auth";
@@ -21,7 +22,8 @@ type Attention = { key: string; tag: string; tone: string; title: string; detail
 export default async function Hoy() {
   const u = await requireUser();
   if (u.role === "FREELANCER") redirect("/tareas");
-  await ensureRetainerOrders().catch(() => 0);
+  // Side effect fuera del camino crítico de render.
+  after(() => { void ensureRetainerOrders().catch(() => 0); });
   const vis = visibleOrders(u);
   const scope = (...c: (SQL | undefined)[]) => and(vis, ...c);
   const now = new Date();
@@ -78,7 +80,7 @@ export default async function Hoy() {
           <p className="eyebrow">{today}</p>
           <h1 className="h1">
             {h < 12 ? "Buenos días" : h < 19 ? "Buenas tardes" : "Buenas noches"}, {u.name.split(" ")[0]}.{" "}
-            {shown.length ? <>Hay <span className="bg-yellow px-1.5">{shown.length} {shown.length === 1 ? "cosa" : "cosas"}</span> esperándote.</> : "Todo está en orden."}
+            {shown.length ? <>Tienes <span className="bg-yellow px-1.5">{shown.length} {shown.length === 1 ? "pendiente" : "pendientes"}</span>.</> : "Todo está en orden."}
           </h1>
         </div>
         {canManage(u.role) && <Link href="/ordenes/nueva" className="btn-primary px-6 py-3 text-[15px]">+ Nueva orden</Link>}

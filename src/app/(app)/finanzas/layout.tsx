@@ -1,16 +1,20 @@
+import { after } from "next/server";
 import { requireRole } from "@/lib/auth";
 import { rateFor, ensureTodayRate } from "@/lib/rates";
 import { rateText, todayCaracas, fmtDay } from "@/lib/money";
 import { setRate, refreshBcvRate } from "@/app/actions/finance";
 import FinanceTabs from "@/components/FinanceTabs";
-import ErrorBanner from "@/components/ErrorBanner";
-import { Suspense } from "react";
 
 export default async function FinanceLayout({ children }: { children: React.ReactNode }) {
   await requireRole("DIRECCION", "ADMINISTRACION");
   const today = todayCaracas();
-  await ensureTodayRate();
-  const r = await rateFor(today);
+  after(() => { void ensureTodayRate().catch(() => 0); });
+  // Si aún no hay tasa, la pedimos en el camino (primera visita del día).
+  let r = await rateFor(today);
+  if (!r) {
+    await ensureTodayRate().catch(() => 0);
+    r = await rateFor(today);
+  }
   const isToday = r?.day === today;
   return (
     <div className="grid gap-6">
@@ -37,7 +41,6 @@ export default async function FinanceLayout({ children }: { children: React.Reac
         </details>
       </div>
       <FinanceTabs />
-      <Suspense fallback={null}><ErrorBanner /></Suspense>
       {children}
     </div>
   );

@@ -3,6 +3,7 @@ import { and, asc, desc, eq, gte, lt, ne, sql } from "drizzle-orm";
 import { db, payments, clients, orders } from "@/db";
 import { usd, money, rateText, fmtDay, todayCaracas } from "@/lib/money";
 import { deletePayment } from "@/app/actions/finance";
+import ConfirmForm from "@/components/ConfirmForm";
 import { PaymentForm } from "@/components/MoneyForms";
 
 export const metadata = { title: "Cobros" };
@@ -65,7 +66,9 @@ export default async function Payments({ searchParams }: { searchParams: Promise
                     <td className="px-2 text-right font-mono tabular">{money(r.amount, r.currency)}{r.rate && <span className="block text-[11px] text-muted">tasa {rateText(r.rate)}</span>}</td>
                     <td className="px-2 text-right font-mono font-semibold tabular">{usd(r.amountUsd)}</td>
                     <td className="px-5 text-right">
-                      <form action={deletePayment.bind(null, r.id, back)}><button className="text-xs text-muted hover:text-bad">Eliminar</button></form>
+                      <ConfirmForm action={deletePayment.bind(null, r.id, back)} message="¿Eliminar este cobro? Quedará registrado en la auditoría.">
+                        <button className="text-xs text-muted hover:text-bad">Eliminar</button>
+                      </ConfirmForm>
                     </td>
                   </tr>
                 ))}

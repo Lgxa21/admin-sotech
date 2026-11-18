@@ -1,23 +1,18 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { eq, ilike, and } from "drizzle-orm";
+import { eq, ilike, and, or } from "drizzle-orm";
 import { db, orders, comments, statusChanges, tasks, users } from "@/db";
 import { requireUser, type SessionUser } from "@/lib/auth";
 import { canAccessOrder } from "@/lib/access";
 import { notify, usersWithRole } from "@/lib/notify";
-import { canManage, isDirector } from "@/lib/perm";
+import { canManage } from "@/lib/perm";
 import { cleanBrief } from "@/lib/briefs";
 import {
   STATUSES, SERVICES, PRIORITIES, STATUS_LABEL, fromInputDate, type Status,
 } from "@/lib/labels";
-
-const str = (f: FormData, k: string) => {
-  const v = f.get(k);
-  return typeof v === "string" && v.trim() ? v.trim() : null;
-};
-const pick = <T extends readonly string[]>(list: T, v: string | null, fallback: T[number]): T[number] =>
-  v && (list as readonly string[]).includes(v) ? (v as T[number]) : fallback;
+import { str, pick, fail, isUuid } from "@/lib/form";
+import { canMoveTo } from "@/lib/order-workflow";
 
 function orderFields(f: FormData, u: SessionUser) {
   const base = {
@@ -36,7 +31,6 @@ function orderFields(f: FormData, u: SessionUser) {
     internalNotes: str(f, "internalNotes"),
     isRecurring: f.get("isRecurring") === "on",
   };
-  // Montos y factura solo los registra quien puede ver dinero.
   if (!canManage(u.role)) return base;
   const budget = str(f, "budget");
   return {
@@ -49,37 +43,32 @@ function orderFields(f: FormData, u: SessionUser) {
 
 export async function createOrder(f: FormData) {
   const u = await requireUser();
-  if (!canManage(u.role)) throw new Error("Solo dirección o administración crean órdenes.");
+  if (!canManage(u.role)) fail("/ordenes/nueva", "Solo dirección o administración crean órdenes.");
   const data = orderFields(f, u);
-  if (!data.clientId) throw new Error("Elige un cliente.");
-  const [o] = await db.insert(orders).values({ ...data, createdById: u.id }).returning();
-  await db.insert(statusChanges).values({ orderId: o.id, from: null, to: "RECIBIDO", userId: u.id, note: "Orden creada" });
+  if (!isUuid(data.clientId)) fail("/ordenes/nueva", "Elige un cliente.");
+  const o = await db.transaction(async (tx) => {
+    const [row] = await tx.insert(orders).values({ ...data, createdById: u.id }).returning();
+    await tx.insert(statusChanges).values({ orderId: row.id, from: null, to: "RECIBIDO", userId: u.id, note: "Orden creada" });
+    return row;
+  });
   await notify([o.ownerId], `Te asignaron la orden #${o.number}: ${o.title}`, { orderId: o.id, exclude: u.id, kind: "tarea" });
   revalidatePath("/ordenes");
-  redirect(`/ordenes/${o.id}`);
+  redirect(`/ordenes/${o.id}?ok=${encodeURIComponent("Orden creada.")}`);
 }
 
 export async function updateOrder(id: string, f: FormData) {
   const u = await requireUser();
-  if (!canManage(u.role)) throw new Error("No tienes permiso para editar esta orden.");
+  if (!canManage(u.role)) fail(`/ordenes/${id}/editar`, "No tienes permiso para editar esta orden.");
   const prev = await db.query.orders.findFirst({ where: eq(orders.id, id) });
-  if (!prev) throw new Error("La orden no existe.");
+  if (!prev) fail("/ordenes", "La orden no existe.");
   const data = orderFields(f, u);
+  if (!isUuid(data.clientId)) fail(`/ordenes/${id}/editar`, "Elige un cliente.");
   await db.update(orders).set({ ...data, updatedAt: new Date() }).where(eq(orders.id, id));
   if (data.ownerId && data.ownerId !== prev.ownerId) {
     await notify([data.ownerId], `Te asignaron la orden #${prev.number}: ${data.title}`, { orderId: id, exclude: u.id, kind: "tarea" });
   }
   revalidatePath(`/ordenes/${id}`);
-  redirect(`/ordenes/${id}`);
-}
-
-// Quién puede mover una orden a cada etapa.
-function canMoveTo(u: SessionUser, to: Status) {
-  if (u.role === "FREELANCER") return false;
-  if (to === "ENVIADO_CLIENTE") return isDirector(u.role); // solo dirección aprueba antes del cliente
-  if (to === "FACTURADO" || to === "PAGO_PROVEEDORES") return canManage(u.role);
-  if (canManage(u.role)) return true;
-  return ["BRIEF_REVISION", "EN_PRODUCCION", "REVISION_INTERNA", "AJUSTES", "APROBADO", "ENTREGADO"].includes(to);
+  redirect(`/ordenes/${id}?ok=${encodeURIComponent("Cambios guardados.")}`);
 }
 
 export async function moveOrder(id: string, toRaw: string, note?: string) {
@@ -95,8 +84,10 @@ export async function moveOrder(id: string, toRaw: string, note?: string) {
   let rounds = o.revisionRoundsUsed;
   if (o.status === "ENVIADO_CLIENTE" && to === "AJUSTES") rounds += 1;
 
-  await db.update(orders).set({ status: to, statusChangedAt: new Date(), revisionRoundsUsed: rounds, updatedAt: new Date() }).where(eq(orders.id, id));
-  await db.insert(statusChanges).values({ orderId: id, from: o.status, to, userId: u.id, note: note || null });
+  await db.transaction(async (tx) => {
+    await tx.update(orders).set({ status: to, statusChangedAt: new Date(), revisionRoundsUsed: rounds, updatedAt: new Date() }).where(eq(orders.id, id));
+    await tx.insert(statusChanges).values({ orderId: id, from: o.status, to, userId: u.id, note: note || null });
+  });
 
   const label = `#${o.number} ${o.title}`;
   await notify([o.ownerId], `${label} pasó a "${STATUS_LABEL[to]}"`, { orderId: id, exclude: u.id, kind: "estado" });
@@ -122,12 +113,13 @@ export async function moveOrderForm(id: string, f: FormData) {
   redirect(`/ordenes/${id}`);
 }
 
-// @nombre en un comentario avisa a esa persona.
 async function mentioned(body: string) {
   const names = [...body.matchAll(/@([\p{L}][\p{L}\-]+)/gu)].map((m) => m[1]);
   if (!names.length) return [];
-  const found = await Promise.all(names.map((n) => db.select({ id: users.id }).from(users).where(and(ilike(users.name, `${n}%`), eq(users.active, true)))));
-  return found.flat().map((r) => r.id);
+  // Una sola query con OR en lugar de N+1.
+  const conds = names.map((n) => ilike(users.name, `${n}%`));
+  const found = await db.select({ id: users.id }).from(users).where(and(eq(users.active, true), or(...conds)));
+  return found.map((r) => r.id);
 }
 
 export async function addComment(id: string, f: FormData) {
@@ -135,39 +127,42 @@ export async function addComment(id: string, f: FormData) {
   const body = str(f, "body");
   if (!body || !(await canAccessOrder(u, id))) redirect(`/ordenes/${id}`);
   const o = await db.query.orders.findFirst({ where: eq(orders.id, id) });
+  if (!o) redirect("/ordenes");
   await db.insert(comments).values({ orderId: id, authorId: u.id, body });
   const ids = await mentioned(body);
-  await notify(ids, `${u.name} te mencionó en #${o!.number}: ${body.slice(0, 90)}`, { orderId: id, exclude: u.id, kind: "mencion" });
+  await notify(ids, `${u.name} te mencionó en #${o.number}: ${body.slice(0, 90)}`, { orderId: id, exclude: u.id, kind: "mencion" });
   revalidatePath(`/ordenes/${id}`);
   redirect(`/ordenes/${id}#comentarios`);
 }
 
-// Caso real: "el cliente me dice en persona un cambio y no lo anoto".
 export async function registerClientChange(id: string, f: FormData) {
   const u = await requireUser();
   const body = str(f, "body");
   if (!body || !(await canAccessOrder(u, id)) || u.role === "FREELANCER") redirect(`/ordenes/${id}`);
   const o = await db.query.orders.findFirst({ where: eq(orders.id, id) });
   if (!o) redirect("/ordenes");
-  await db.insert(comments).values({ orderId: id, authorId: u.id, body, kind: "cambio_cliente" });
-  await db.insert(tasks).values({
-    orderId: id, title: `Cambio del cliente: ${body.slice(0, 80)}`, notes: body,
-    assigneeId: o.ownerId, createdById: u.id, status: "PENDIENTE",
+  await db.transaction(async (tx) => {
+    await tx.insert(comments).values({ orderId: id, authorId: u.id, body, kind: "cambio_cliente" });
+    await tx.insert(tasks).values({
+      orderId: id, title: `Cambio del cliente: ${body.slice(0, 80)}`, notes: body,
+      assigneeId: o.ownerId, createdById: u.id, status: "PENDIENTE",
+    });
   });
   await notify([o.ownerId], `Cambio del cliente en #${o.number}: ${body.slice(0, 90)}`, { orderId: id, exclude: u.id, kind: "tarea" });
   revalidatePath(`/ordenes/${id}`);
   redirect(`/ordenes/${id}#comentarios`);
 }
 
-// Urgencias: primero a dirección, que decide a qué área va.
 export async function raiseUrgency(id: string, f: FormData) {
   const u = await requireUser();
   const body = str(f, "body");
   if (!body || !(await canAccessOrder(u, id))) redirect(`/ordenes/${id}`);
   const o = await db.query.orders.findFirst({ where: eq(orders.id, id) });
   if (!o) redirect("/ordenes");
-  await db.update(orders).set({ priority: "URGENTE", updatedAt: new Date() }).where(eq(orders.id, id));
-  await db.insert(comments).values({ orderId: id, authorId: u.id, body, kind: "urgencia" });
+  await db.transaction(async (tx) => {
+    await tx.update(orders).set({ priority: "URGENTE", updatedAt: new Date() }).where(eq(orders.id, id));
+    await tx.insert(comments).values({ orderId: id, authorId: u.id, body, kind: "urgencia" });
+  });
   await notify(await usersWithRole("DIRECCION"), `URGENCIA en #${o.number} ${o.title}: ${body.slice(0, 90)}`, { orderId: id, urgent: true, exclude: u.id, kind: "urgencia" });
   revalidatePath(`/ordenes/${id}`);
   revalidatePath("/");

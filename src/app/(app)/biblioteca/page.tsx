@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { after } from "next/server";
 import { asc } from "drizzle-orm";
 import { db, docs } from "@/db";
 import { requireUser } from "@/lib/auth";
@@ -12,8 +13,12 @@ export const dynamic = "force-dynamic";
 
 export default async function Library() {
   const u = await requireUser();
-  await ensureDefaultDocs();
-  const rows = await db.select().from(docs).orderBy(asc(docs.position), asc(docs.createdAt));
+  after(() => { void ensureDefaultDocs().catch(() => 0); });
+  let rows = await db.select().from(docs).orderBy(asc(docs.position), asc(docs.createdAt));
+  if (!rows.length) {
+    await ensureDefaultDocs().catch(() => 0);
+    rows = await db.select().from(docs).orderBy(asc(docs.position), asc(docs.createdAt));
+  }
   const cats = Object.entries(DOC_CATEGORIES).filter(([, c]) => !c.moneyOnly || canSeeMoney(u.role));
   return (
     <div className="grid gap-8">
@@ -24,6 +29,11 @@ export default async function Library() {
         </div>
         {canManage(u.role) && <Link href="/biblioteca/nuevo" className="btn-primary">+ Nuevo documento</Link>}
       </div>
+      {!rows.length && (
+        <p className="card px-6 py-8 text-center text-muted">
+          Todavía no hay documentos.{canManage(u.role) ? <> <Link href="/biblioteca/nuevo" className="font-semibold underline">Crea el primero</Link>.</> : null}
+        </p>
+      )}
       {cats.map(([key, c]) => {
         const list = rows.filter((d) => d.category === key);
         if (!list.length) return null;

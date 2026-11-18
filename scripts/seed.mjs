@@ -2,10 +2,13 @@
 // Con SEED_DEMO=1 agrega además datos de ejemplo (marcados como "ejemplo") para probar el sistema.
 import pg from "pg";
 import bcrypt from "bcryptjs";
+import { createHash } from "node:crypto";
 
 const pool = new pg.Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_SSL === "true" ? { rejectUnauthorized: false } : undefined,
+  ssl: process.env.DATABASE_SSL === "true"
+    ? { rejectUnauthorized: process.env.DATABASE_SSL_INSECURE !== "true" }
+    : undefined,
 });
 const q = (text, params) => pool.query(text, params);
 
@@ -22,13 +25,38 @@ if (n === 0) {
   }
 }
 
-// Recuperación de acceso: si RESET_PASSWORD_EMAIL y RESET_PASSWORD están definidos, cambia la contraseña de esa cuenta al iniciar.
-// Úsalo una sola vez y luego borra las dos variables, para que no se vuelva a aplicar en el próximo reinicio.
+// Recuperación de acceso: se aplica UNA sola vez por combinación email+clave (marcador en audit_events).
+// Borra RESET_PASSWORD_EMAIL y RESET_PASSWORD en Railway después de usarlo.
 const resetEmail = (process.env.RESET_PASSWORD_EMAIL || "").trim().toLowerCase();
 const resetPassword = process.env.RESET_PASSWORD || "";
 if (resetEmail && resetPassword) {
-  const r = await q("update users set password_hash = $1 where lower(email) = $2", [await bcrypt.hash(resetPassword, 10), resetEmail]);
-  console.log(r.rowCount ? `Contraseña restablecida para ${resetEmail}` : `No existe una cuenta con el correo ${resetEmail}`);
+  const fingerprint = createHash("sha256").update(`${resetEmail}:${resetPassword}`).digest("hex");
+  let already = false;
+  try {
+    const { rows } = await q(
+      "select 1 from audit_events where kind = 'env_password_reset' and entity_id = $1 and detail->>'fingerprint' = $2 limit 1",
+      [resetEmail, fingerprint],
+    );
+    already = rows.length > 0;
+  } catch {
+    // tabla aún no migrada: se aplica igual (migración corre antes en npm start)
+  }
+  if (already) {
+    console.log(`Reset de contraseña ya aplicado para ${resetEmail} (borra RESET_PASSWORD_* del entorno).`);
+  } else {
+    const r = await q("update users set password_hash = $1 where lower(email) = $2", [await bcrypt.hash(resetPassword, 10), resetEmail]);
+    if (r.rowCount) {
+      try {
+        await q(
+          "insert into audit_events (kind, entity_type, entity_id, detail) values ('env_password_reset', 'user', $1, $2::jsonb)",
+          [resetEmail, JSON.stringify({ fingerprint, note: "Consumido. Elimina RESET_PASSWORD_EMAIL y RESET_PASSWORD." })],
+        );
+      } catch { /* ignore if audit table missing */ }
+      console.log(`Contraseña restablecida para ${resetEmail}. IMPORTANTE: borra RESET_PASSWORD_EMAIL y RESET_PASSWORD ahora.`);
+    } else {
+      console.log(`No existe una cuenta con el correo ${resetEmail}`);
+    }
+  }
 }
 
 if (process.env.SEED_DEMO === "1") {

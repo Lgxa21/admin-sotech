@@ -61,10 +61,12 @@ export async function monthReport(month: string) {
   };
 }
 
+const EXPORT_CAP = 2000;
+
 export async function ordersForExport(where: SQL | undefined) {
   return db.select({
     number: orders.number, title: orders.title, client: clients.name, serviceType: orders.serviceType, status: orders.status, priority: orders.priority,
     requestedAt: orders.requestedAt, dueDate: orders.dueDate, budget: orders.budget, currency: orders.currency, invoiceNumber: orders.invoiceNumber,
     owner: sql<string | null>`(select name from users where users.id = ${orders.ownerId})`,
-  }).from(orders).innerJoin(clients, eq(clients.id, orders.clientId)).where(where).orderBy(desc(orders.number));
+  }).from(orders).innerJoin(clients, eq(clients.id, orders.clientId)).where(where).orderBy(desc(orders.number)).limit(EXPORT_CAP);
 }

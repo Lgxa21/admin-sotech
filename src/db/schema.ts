@@ -1,7 +1,7 @@
 // Sistema administrativo Sotech - Caracasprint
 // Fase 1 (núcleo): usuarios y roles, clientes, órdenes, tareas, comentarios, historial y avisos.
 import {
-  pgTable, pgEnum, uuid, text, integer, boolean, timestamp, numeric, jsonb, serial, index, date, uniqueIndex,
+  pgTable, pgEnum, uuid, text, integer, boolean, timestamp, numeric, jsonb, serial, index, date, uniqueIndex, type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
@@ -91,7 +91,7 @@ export const orders = pgTable("orders", {
   invoiceNumber: text("invoice_number"),
   internalNotes: text("internal_notes"),
   isRecurring: boolean("is_recurring").notNull().default(false),
-  retainerId: uuid("retainer_id"),
+  retainerId: uuid("retainer_id").references((): AnyPgColumn => retainers.id, { onDelete: "set null" }),
   period: text("period"), // "2026-11" para la orden mensual de una iguala
   source: text("source").notNull().default("interno"), // interno | cliente | cotizacion | iguala
   statusChangedAt: ts("status_changed_at").notNull().defaultNow(),
@@ -99,6 +99,7 @@ export const orders = pgTable("orders", {
   updatedAt: ts("updated_at").notNull().defaultNow(),
 }, (t) => [
   index("orders_status_idx").on(t.status), index("orders_client_idx").on(t.clientId), index("orders_owner_idx").on(t.ownerId),
+  index("orders_due_idx").on(t.dueDate), index("orders_status_changed_idx").on(t.statusChangedAt),
   uniqueIndex("orders_retainer_period_idx").on(t.retainerId, t.period),
 ]);
 
@@ -223,7 +224,7 @@ export const quotes = pgTable("quotes", {
   createdById: uuid("created_by_id").notNull().references(() => users.id),
   createdAt: ts("created_at").notNull().defaultNow(),
   updatedAt: ts("updated_at").notNull().defaultNow(),
-});
+}, (t) => [index("quotes_client_idx").on(t.clientId)]);
 
 export const quoteItems = pgTable("quote_items", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -232,7 +233,7 @@ export const quoteItems = pgTable("quote_items", {
   qty: numeric("qty", { precision: 10, scale: 2 }).notNull().default("1"),
   unitPrice: numeric("unit_price", { precision: 14, scale: 2 }).notNull(),
   position: integer("position").notNull().default(0),
-});
+}, (t) => [index("quote_items_quote_idx").on(t.quoteId)]);
 
 // ---------- Igualas ----------
 export type RetainerItem = { title: string; qty: number };
@@ -251,7 +252,18 @@ export const retainers = pgTable("retainers", {
   endPeriod: text("end_period"),
   active: boolean("active").notNull().default(true),
   createdAt: ts("created_at").notNull().defaultNow(),
-});
+}, (t) => [index("retainers_client_idx").on(t.clientId)]);
+
+// Auditoría de acciones sensibles (borrados financieros, reset de clave por env, etc.).
+export const auditEvents = pgTable("audit_events", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  kind: text("kind").notNull(),
+  actorId: uuid("actor_id").references(() => users.id, { onDelete: "set null" }),
+  entityType: text("entity_type"),
+  entityId: text("entity_id"),
+  detail: jsonb("detail").$type<Record<string, unknown>>().notNull().default({}),
+  createdAt: ts("created_at").notNull().defaultNow(),
+}, (t) => [index("audit_events_kind_idx").on(t.kind, t.createdAt)]);
 
 // ---------- Enlace de aprobación para el cliente ----------
 export const approvalLinks = pgTable("approval_links", {

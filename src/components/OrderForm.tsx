@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { SERVICES, SERVICE_LABEL, PRIORITIES, PRIORITY_LABEL, toInputDate } from "@/lib/labels";
 import BriefField from "./BriefField";
+import SubmitButton from "./SubmitButton";
 
 type Opt = { id: string; name: string };
 type Values = Partial<{
@@ -73,7 +74,7 @@ export default function OrderForm({ action, clients, people, values = {}, money,
         <Field label="Notas internas (el cliente no las ve)" id="internalNotes"><textarea id="internalNotes" name="internalNotes" rows={3} defaultValue={v.internalNotes ?? ""} className="input" /></Field>
       </section>
 
-      <div className="flex gap-2"><button className="btn-primary">{submit}</button><Link href={cancelHref} className="btn">Cancelar</Link></div>
+      <div className="flex gap-2"><SubmitButton pendingLabel="Guardando…">{submit}</SubmitButton><Link href={cancelHref} className="btn">Cancelar</Link></div>
     </form>
   );
 }
