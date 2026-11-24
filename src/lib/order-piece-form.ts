@@ -1,18 +1,12 @@
 import "server-only";
+import { imageType } from "./upload-types";
 import { and, eq, inArray, isNotNull, notInArray, or } from "drizzle-orm";
 import { db, orderReferences } from "@/db";
 import { isUuid, str } from "./form";
-import { MAX_IMAGE_BYTES, MAX_PIECES, MAX_UPLOAD_BYTES, PIECE_UNITS, type OrderPiece } from "./order-pieces";
+import { MAX_IMAGE_BYTES, MAX_PIECES, MAX_UPLOAD_BYTES, PIECE_DIRECTIONS, PIECE_UNITS, type OrderPiece } from "./order-pieces";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Reference = Omit<typeof orderReferences.$inferInsert, "orderId">;
-
-function imageType(data: Buffer) {
-  if (data.subarray(0, 3).equals(Buffer.from([0xff, 0xd8, 0xff]))) return "image/jpeg";
-  if (data.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) return "image/png";
-  if (data.toString("ascii", 0, 4) === "RIFF" && data.toString("ascii", 8, 12) === "WEBP") return "image/webp";
-  return null;
-}
 
 export async function readOrderDetails(form: FormData) {
   const ids = form.getAll("pieceId").map(String);
@@ -39,7 +33,9 @@ export async function readOrderDetails(form: FormData) {
     return {
       id, name, quantity, unit: unit ?? "cm", width: dimension("width"), height: dimension("height"), depth: dimension("depth"),
       material: field("material", 180), finish: field("finish", 180),
-      instructions: field("instructions", 5000), copy: field("copy", 5000),
+      instructions: field("instructions", 5000),
+      directions: Object.fromEntries(PIECE_DIRECTIONS.map(({ key }) => [key, field(`direction:${key}`, key === "design" ? 5000 : 600)])),
+      copy: field("copy", 5000),
       components: form.getAll(`piece:${id}:component`).slice(0, 30).map((entry) => String(entry).trim().slice(0, 180)).filter(Boolean),
     };
   });

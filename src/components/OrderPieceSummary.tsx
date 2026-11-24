@@ -1,4 +1,4 @@
-import { referenceUrl, type OrderPiece, type OrderReference } from "@/lib/order-pieces";
+import { PIECE_DIRECTIONS, referenceUrl, type OrderPiece, type OrderReference } from "@/lib/order-pieces";
 
 export function ReferenceGallery({ orderId, references }: { orderId: string; references: OrderReference[] }) {
   if (!references.length) return null;
@@ -40,7 +40,10 @@ export default function OrderPieceSummary({ orderId, pieces, references }: { ord
                 {specs.map(([label, value]) => <div key={label}><dt className="text-xs text-muted">{label}</dt><dd className="break-words font-semibold">{value}</dd></div>)}
               </dl>
             )}
-            {piece.instructions && <p className="whitespace-pre-wrap break-words text-sm">{piece.instructions}</p>}
+            {PIECE_DIRECTIONS.map(({ key, label }) => {
+              const value = piece.directions?.[key] || (key === "design" ? piece.instructions : undefined);
+              return value && <div key={key}><h4 className="label">{label}</h4><p className="whitespace-pre-wrap break-words text-sm">{value}</p></div>;
+            })}
             {piece.components.length > 0 && (
               <div><h4 className="label">Partes</h4><ol className="list-inside list-decimal text-sm">
                 {piece.components.map((item, index) => <li key={index} className="break-words">{item}</li>)}

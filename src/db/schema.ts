@@ -4,7 +4,7 @@ import {
   pgTable, pgEnum, uuid, text, integer, boolean, timestamp, numeric, jsonb, serial, index, date, uniqueIndex, customType, type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 import type { OrderPiece } from "@/lib/order-pieces";
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 
 export const roleEnum = pgEnum("role", ["DIRECCION", "ADMINISTRACION", "PRODUCCION", "FREELANCER"]);
 export const orderStatusEnum = pgEnum("order_status", [
@@ -106,6 +106,24 @@ export const orders = pgTable("orders", {
 ]);
 
 const binary = customType<{ data: Buffer }>({ dataType: () => "bytea" });
+
+export const brandGuides = pgTable("brand_guides", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  clientId: uuid("client_id").notNull().references(() => clients.id, { onDelete: "cascade" }),
+  isCompany: boolean("is_company").notNull().default(false),
+  name: text("name").notNull(),
+  colors: jsonb("colors").$type<string[]>().notNull().default([]),
+  shapes: text("shapes"),
+  typography: text("typography"),
+  logoRules: text("logo_rules"),
+  notes: text("notes"),
+  fileName: text("file_name"),
+  fileType: text("file_type"),
+  fileData: binary("file_data"),
+}, (t) => [
+  uniqueIndex("brand_guides_company_idx").on(t.clientId).where(sql`${t.isCompany}`),
+  uniqueIndex("brand_guides_subbrand_idx").on(t.clientId, sql`lower(${t.name})`).where(sql`not ${t.isCompany}`),
+]);
 
 export const orderReferences = pgTable("order_references", {
   id: uuid("id").primaryKey().defaultRandom(),
