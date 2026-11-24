@@ -30,12 +30,14 @@ export function ReferenceField({ field, orderId, references }: { field: string; 
 
   return (
     <div className="grid gap-2">
-      <label className="grid gap-1 text-sm font-semibold">
-        Adjuntar fotos
+      <div className="rounded-xl border border-dashed border-line bg-canvas/60 p-3">
+        <button type="button" className="btn min-h-11 bg-paper" onClick={() => inputRef.current?.click()}>
+          + Adjuntar fotos
+        </button>
         <input ref={inputRef} name={`references:${field}`} type="file" accept="image/jpeg,image/png,image/webp" multiple
-          onChange={selectImages} className="input text-sm file:mr-3 file:rounded-full file:border-0 file:bg-yellow file:px-3 file:py-1" />
-      </label>
-      <p className="text-xs text-muted">JPG, PNG o WebP · 5 MB por foto · 15 MB por guardado</p>
+          onChange={selectImages} hidden />
+        <p className="mt-2 text-xs text-muted">JPG, PNG o WebP · hasta 5 MB por foto y 15 MB en total</p>
+      </div>
       {(previews.length > 0 || references.length > 0) && (
         <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {orderId && references.map((file) => (
@@ -64,7 +66,7 @@ export function ReferenceField({ field, orderId, references }: { field: string; 
 export default function OrderPiecesFields({ initial, references, orderId }: { initial: OrderPiece[]; references: OrderReference[]; orderId?: string }) {
   const [pieces, setPieces] = useState<{ id: string; values?: OrderPiece }[]>(() => initial.map((piece) => ({ id: piece.id, values: piece })));
   return (
-    <section className="card grid gap-4 p-5" aria-labelledby="piece-heading">
+    <section className="card grid min-w-0 gap-3 p-3 sm:gap-4 sm:p-5" aria-labelledby="piece-heading">
       <div>
         <h2 id="piece-heading" className="h2">Piezas del pedido</h2>
         <p className="mt-1 text-sm text-muted">Agrega una ficha por cada pieza distinta. Si son iguales, indica la cantidad en una sola ficha.</p>
@@ -91,63 +93,67 @@ function PieceFields({ id, index, values, references, orderId, remove }: {
   const [components, setComponents] = useState(() => (values?.components ?? []).map((value, key) => ({ key: String(key), value })));
   const key = (field: string) => `piece:${id}:${field}`;
   return (
-    <fieldset className="grid min-w-0 gap-4 rounded-2xl border border-line p-4">
-      <legend className="max-w-full truncate px-2 font-bold">Pieza {index + 1}{name && ` · ${name}`}</legend>
-      <input type="hidden" name="pieceId" value={id} />
-      <div className="grid gap-3 sm:grid-cols-[1fr_7rem]">
-        <label className="grid gap-1 text-sm font-semibold">Nombre de la pieza
-          <input className="input" name={key("name")} value={name} onChange={(event) => setName(event.currentTarget.value)}
-            placeholder="Ej. Mini-cabezal" required maxLength={120} />
-        </label>
-        <label className="grid gap-1 text-sm font-semibold">Cantidad
-          <input className="input" name={key("quantity")} type="number" min={1} max={999999} defaultValue={values?.quantity ?? 1} required />
-        </label>
-      </div>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        {([["height", "Alto"], ["width", "Ancho"], ["depth", "Profundidad"]] as const).map(([field, label]) => (
-          <label key={field} className="grid gap-1 text-sm font-semibold">{label}
-            <input className="input min-w-0" name={key(field)} inputMode="decimal" pattern="[0-9]{1,8}([.,][0-9]{1,6})?"
-              title="Escribe una medida como 1,25" defaultValue={values?.[field]}
-              ref={(input) => { if (input) measureRefs.current[field] = input; }}
-              onChange={() => setHasDimensions(Object.values(measureRefs.current).some((input) => input.value !== ""))} />
+    <fieldset className="m-0 min-w-0 w-full max-w-full rounded-2xl border border-line p-3 sm:p-4">
+      <legend className="max-w-full break-all px-2 text-sm font-bold sm:text-base">Pieza {index + 1}{name && ` · ${name}`}</legend>
+      <div className="grid min-w-0 grid-cols-1 gap-3 sm:gap-4">
+        <input type="hidden" name="pieceId" value={id} />
+        <div className="grid grid-cols-[minmax(0,1fr)_4.5rem] gap-2 sm:grid-cols-[minmax(0,1fr)_7rem] sm:gap-3">
+          <label className="grid gap-1 text-sm font-semibold">Nombre de la pieza
+            <input className="input" name={key("name")} value={name} onChange={(event) => setName(event.currentTarget.value)}
+              placeholder="Ej. Mini-cabezal" required maxLength={120} />
           </label>
-        ))}
-        <label className="grid gap-1 text-sm font-semibold">Unidad
-          <select className="input" name={key("unit")} defaultValue={values?.width || values?.height || values?.depth ? values.unit : ""} required={hasDimensions}>
-            <option value="">Elegir</option>
-            {PIECE_UNITS.map((unit) => <option key={unit}>{unit}</option>)}
-          </select>
-        </label>
-      </div>
-      <label className="grid gap-1 text-sm font-semibold">Indicaciones para esta pieza
-        <textarea className="input" name={key("instructions")} rows={2} maxLength={5000} defaultValue={values?.instructions}
-          placeholder="Ej. Usar la foto como guía y adaptar el exhibidor a cuatro niveles." />
-      </label>
-      <ReferenceField field={id} references={references} orderId={orderId} />
-      <details open={values?.components.length || values?.material || values?.finish || values?.copy ? true : undefined} className="grid gap-2">
-        <summary className="cursor-pointer text-sm font-semibold">Materiales, textos y partes</summary>
-        <div className="mt-3 grid gap-3">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="grid gap-1 text-sm font-semibold">Material<input className="input" name={key("material")} maxLength={180} defaultValue={values?.material} /></label>
-            <label className="grid gap-1 text-sm font-semibold">Acabado<input className="input" name={key("finish")} maxLength={180} defaultValue={values?.finish} /></label>
-          </div>
-          <label className="grid gap-1 text-sm font-semibold">Texto que debe aparecer<textarea className="input" name={key("copy")} maxLength={5000} rows={2} defaultValue={values?.copy} /></label>
-          {components.map((part, position) => (
-            <div key={part.key} className="flex items-end gap-2">
-              <label className="grid min-w-0 flex-1 gap-1 text-sm font-semibold">Parte {position + 1}
-                <input className="input" name={key("component")} maxLength={180} defaultValue={part.value} placeholder="Ej. Peldaño 1 · Milka" />
-              </label>
-              <button type="button" className="btn btn-sm" onClick={() => setComponents((current) => current.filter((item) => item.key !== part.key))}
-                aria-label={`Quitar parte ${position + 1}`}>Quitar</button>
-            </div>
-          ))}
-          {components.length < 30 && <button type="button" className="btn btn-sm w-fit"
-            onClick={() => setComponents((current) => [...current, { key: browserId(), value: "" }])}>+ Agregar parte</button>}
+          <label className="grid gap-1 text-sm font-semibold">Cantidad
+            <input className="input" name={key("quantity")} type="number" min={1} max={999999} defaultValue={values?.quantity ?? 1} required />
+          </label>
         </div>
-      </details>
-      <button type="button" className="w-fit text-sm font-semibold text-bad underline" onClick={() => {
-        if (window.confirm(`¿Quitar la pieza ${index + 1} y sus referencias de esta orden?`)) remove();
-      }}>Quitar pieza</button>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {([["height", "Alto"], ["width", "Ancho"], ["depth", "Profundidad"]] as const).map(([field, label]) => (
+            <label key={field} className="grid gap-1 text-sm font-semibold">{label}
+              <input className="input min-w-0" name={key(field)} inputMode="decimal" pattern="[0-9]{1,8}([.,][0-9]{1,6})?"
+                title="Escribe una medida como 1,25" defaultValue={values?.[field]}
+                ref={(input) => { if (input) measureRefs.current[field] = input; }}
+                onChange={() => setHasDimensions(Object.values(measureRefs.current).some((input) => input.value !== ""))} />
+            </label>
+          ))}
+          <label className="grid gap-1 text-sm font-semibold">Unidad
+            <select className="input" name={key("unit")} defaultValue={values?.width || values?.height || values?.depth ? values.unit : ""} required={hasDimensions}>
+              <option value="">Elegir</option>
+              {PIECE_UNITS.map((unit) => <option key={unit}>{unit}</option>)}
+            </select>
+          </label>
+        </div>
+        <label className="grid gap-1 text-sm font-semibold">Indicaciones para esta pieza
+          <textarea className="input" name={key("instructions")} rows={2} maxLength={5000} defaultValue={values?.instructions}
+            placeholder="Ej. Adaptar el exhibidor a cuatro niveles." />
+        </label>
+        <ReferenceField field={id} references={references} orderId={orderId} />
+        <details open={values?.components.length || values?.material || values?.finish || values?.copy ? true : undefined} className="group rounded-xl border border-line">
+          <summary className="flex min-h-11 cursor-pointer items-center justify-between gap-2 px-3 py-2 text-sm font-semibold">
+            Materiales, textos y partes <span aria-hidden="true" className="transition-transform group-open:rotate-90">›</span>
+          </summary>
+          <div className="grid min-w-0 gap-3 px-3 pb-3">
+            <div className="grid grid-cols-2 gap-2 sm:gap-3">
+              <label className="grid gap-1 text-sm font-semibold">Material<input className="input" name={key("material")} maxLength={180} defaultValue={values?.material} /></label>
+              <label className="grid gap-1 text-sm font-semibold">Acabado<input className="input" name={key("finish")} maxLength={180} defaultValue={values?.finish} /></label>
+            </div>
+            <label className="grid gap-1 text-sm font-semibold">Texto que debe aparecer<textarea className="input" name={key("copy")} maxLength={5000} rows={2} defaultValue={values?.copy} /></label>
+            {components.map((part, position) => (
+              <div key={part.key} className="flex items-end gap-2">
+                <label className="grid min-w-0 flex-1 gap-1 text-sm font-semibold">Parte {position + 1}
+                  <input className="input" name={key("component")} maxLength={180} defaultValue={part.value} placeholder="Ej. Peldaño 1 · Milka" />
+                </label>
+                <button type="button" className="btn btn-sm" onClick={() => setComponents((current) => current.filter((item) => item.key !== part.key))}
+                  aria-label={`Quitar parte ${position + 1}`}>Quitar</button>
+              </div>
+            ))}
+            {components.length < 30 && <button type="button" className="btn btn-sm w-fit"
+              onClick={() => setComponents((current) => [...current, { key: browserId(), value: "" }])}>+ Agregar parte</button>}
+          </div>
+        </details>
+        <button type="button" className="min-h-11 w-fit text-sm font-semibold text-bad underline" onClick={() => {
+          if (window.confirm(`¿Quitar la pieza ${index + 1} y sus referencias de esta orden?`)) remove();
+        }}>Quitar pieza</button>
+      </div>
     </fieldset>
   );
 }
