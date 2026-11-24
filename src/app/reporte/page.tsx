@@ -24,7 +24,7 @@ export default async function MonthReport({ searchParams }: { searchParams: Prom
       </header>
 
       <section className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {[["Cobrado", t.in, "border-cyan"], ["Pagado", t.out, "border-magenta"], ["Queda en caja", t.net, "border-ink"], ["Por cobrar", t.receivable, "border-yellow"]].map(([l, v, b]) => (
+        {[["Cobrado", t.in, "border-cyan"], ["Pagado", t.out, "border-magenta"], ["Flujo neto del mes", t.net, "border-ink"], ["Por cobrar", t.receivable, "border-yellow"]].map(([l, v, b]) => (
           <div key={l as string} className={`rounded-xl border-t-[5px] bg-canvas px-4 py-3 ${b}`}><p className="font-mono text-lg font-semibold">{usd(v as number)}</p><p className="text-muted">{l}</p></div>
         ))}
       </section>

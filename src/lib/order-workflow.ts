@@ -13,3 +13,22 @@ export function canMoveTo(u: MoveUser, to: Status) {
   // Producción puede marcar aprobación/entrega operativa (p. ej. el cliente llamó).
   return ["BRIEF_REVISION", "EN_PRODUCCION", "REVISION_INTERNA", "AJUSTES", "APROBADO", "ENTREGADO"].includes(to);
 }
+
+const NEXT_STAGES: Record<Status, readonly Status[]> = {
+  RECIBIDO: ["BRIEF_REVISION"],
+  BRIEF_REVISION: ["EN_PRODUCCION"],
+  EN_PRODUCCION: ["REVISION_INTERNA"],
+  REVISION_INTERNA: ["ENVIADO_CLIENTE", "EN_PRODUCCION"],
+  ENVIADO_CLIENTE: ["APROBADO", "AJUSTES"],
+  AJUSTES: ["REVISION_INTERNA"],
+  APROBADO: ["ENTREGADO"],
+  ENTREGADO: ["FACTURADO"],
+  FACTURADO: ["PAGO_PROVEEDORES"],
+  PAGO_PROVEEDORES: [],
+};
+
+export function canTransition(u: MoveUser, from: Status, to: Status, reason?: string) {
+  return canMoveTo(u, to) && (
+    from === to || NEXT_STAGES[from].includes(to) || (canManage(u.role) && Boolean(reason?.trim()))
+  );
+}

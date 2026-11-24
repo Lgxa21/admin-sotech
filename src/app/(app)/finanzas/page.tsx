@@ -70,7 +70,7 @@ export default async function FinanceSummary({ searchParams }: { searchParams: P
         <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4 sm:gap-4">
           <Tile label="Cobrado" value={usd(inMonth.t)} bar="border-cyan" />
           <Tile label="Pagado a proveedores y gastos" value={usd(outMonth.t)} bar="border-magenta" />
-          <Tile label="Queda en caja" value={usd(net)} bar="border-ink" tone={net < 0 ? "text-bad" : ""} />
+          <Tile label="Flujo neto del mes" value={usd(net)} bar="border-ink" tone={net < 0 ? "text-bad" : ""} />
           <Tile label="Margen de las órdenes del mes" value={usd(totPrice - totCosts)} bar="border-yellow" hint={totPrice ? `${Math.round(((totPrice - totCosts) / totPrice) * 100)}% del precio` : undefined} />
         </div>
       </section>

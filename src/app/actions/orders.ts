@@ -12,7 +12,9 @@ import {
   STATUSES, SERVICES, PRIORITIES, STATUS_LABEL, fromInputDate, type Status,
 } from "@/lib/labels";
 import { str, pick, fail, isUuid } from "@/lib/form";
-import { canMoveTo } from "@/lib/order-workflow";
+import { canMoveTo, canTransition } from "@/lib/order-workflow";
+
+import { invalidateApprovalLinks, recordClientRevision } from "@/lib/client-revisions";
 
 function orderFields(f: FormData, u: SessionUser) {
   const base = {
@@ -73,32 +75,38 @@ export async function updateOrder(id: string, f: FormData) {
 
 export async function moveOrder(id: string, toRaw: string, note?: string) {
   const u = await requireUser();
-  const to = pick(STATUSES, toRaw, "RECIBIDO");
+  const to = STATUSES.find((status) => status === toRaw);
+  if (!to) return { error: "Elige una etapa válida." };
   if (!(await canAccessOrder(u, id))) return { error: "No tienes acceso a esta orden." };
   if (!canMoveTo(u, to)) {
     return { error: to === "ENVIADO_CLIENTE" ? "Solo dirección puede aprobar y enviar una pieza al cliente." : "Tu rol no puede mover la orden a esa etapa." };
   }
-  const o = await db.query.orders.findFirst({ where: eq(orders.id, id) });
-  if (!o || o.status === to) return { ok: true };
+  const result = await db.transaction(async (tx) => {
+    const [o] = await tx.select().from(orders).where(eq(orders.id, id)).for("update");
+    if (!o || o.status === to) return null;
+    if (!canTransition(u, o.status, to, note)) {
+      return { error: "Sigue la etapa indicada. Dirección o Administración pueden mover a otra etapa indicando el motivo." };
+    }
+    if (o.status === "ENVIADO_CLIENTE" && to === "AJUSTES") {
+      return { error: "Usa «Registrar cambio del cliente» para indicar qué ajustes pidió." };
+    }
 
-  let rounds = o.revisionRoundsUsed;
-  if (o.status === "ENVIADO_CLIENTE" && to === "AJUSTES") rounds += 1;
-
-  await db.transaction(async (tx) => {
-    await tx.update(orders).set({ status: to, statusChangedAt: new Date(), revisionRoundsUsed: rounds, updatedAt: new Date() }).where(eq(orders.id, id));
-    await tx.insert(statusChanges).values({ orderId: id, from: o.status, to, userId: u.id, note: note || null });
+    const now = new Date();
+    await tx.update(orders).set({ status: to, statusChangedAt: now, updatedAt: now }).where(eq(orders.id, id));
+    if (o.status === "ENVIADO_CLIENTE" || to === "ENVIADO_CLIENTE") await invalidateApprovalLinks(tx, id);
+    await tx.insert(statusChanges).values({ orderId: id, from: o.status, to, userId: u.id, note: note?.trim() || null });
+    return { order: o };
   });
+  if (!result) return { ok: true };
+  if ("error" in result) return { error: result.error };
+  const o = result.order;
 
   const label = `#${o.number} ${o.title}`;
   await notify([o.ownerId], `${label} pasó a "${STATUS_LABEL[to]}"`, { orderId: id, exclude: u.id, kind: "estado" });
   if (to === "REVISION_INTERNA") {
     await notify(await usersWithRole("DIRECCION"), `${label} está lista para tu revisión`, { orderId: id, exclude: u.id, kind: "estado" });
   }
-  if (to === "AJUSTES" && rounds > o.revisionRoundsIncluded) {
-    await notify(await usersWithRole("DIRECCION", "ADMINISTRACION"),
-      `${label}: el cliente pidió la ronda ${rounds} y solo hay ${o.revisionRoundsIncluded} incluidas`, { orderId: id, urgent: true, kind: "urgencia" });
-  }
-  if (to === "APROBADO" || to === "ENTREGADO") {
+  if (to === "ENTREGADO") {
     await notify(await usersWithRole("ADMINISTRACION"), `${label} está lista para facturar`, { orderId: id, exclude: u.id, kind: "finanzas" });
   }
   revalidatePath("/ordenes");
@@ -139,16 +147,37 @@ export async function registerClientChange(id: string, f: FormData) {
   const u = await requireUser();
   const body = str(f, "body");
   if (!body || !(await canAccessOrder(u, id)) || u.role === "FREELANCER") redirect(`/ordenes/${id}`);
-  const o = await db.query.orders.findFirst({ where: eq(orders.id, id) });
-  if (!o) redirect("/ordenes");
-  await db.transaction(async (tx) => {
-    await tx.insert(comments).values({ orderId: id, authorId: u.id, body, kind: "cambio_cliente" });
+  const countsAsRound = f.get("countsAsRound") === "on";
+  const source = str(f, "source", 120);
+  const requester = str(f, "requester", 120);
+  const context = [requester, source].filter(Boolean).join(" · ");
+  const description = context ? `${context}\n\n${body}` : body;
+  const result = await db.transaction(async (tx) => {
+    const [o] = await tx.select().from(orders).where(eq(orders.id, id)).for("update");
+    if (!o) redirect("/ordenes");
+    if (countsAsRound) {
+      if (o.status !== "ENVIADO_CLIENTE") {
+        fail(`/ordenes/${id}`, "Solo puedes contar una ronda nueva cuando la orden espera respuesta del cliente.");
+      }
+      const round = await recordClientRevision(tx, o, u.id, description, "Cambio del cliente registrado por el equipo");
+      return { order: o, round };
+    }
+    await tx.insert(comments).values({ orderId: id, authorId: u.id, body: description, kind: "cambio_cliente" });
     await tx.insert(tasks).values({
-      orderId: id, title: `Cambio del cliente: ${body.slice(0, 80)}`, notes: body,
+      orderId: id, title: `Cambio del cliente: ${body.slice(0, 80)}`, notes: description,
       assigneeId: o.ownerId, createdById: u.id, status: "PENDIENTE",
     });
+    return { order: o, round: null };
   });
+  const { order: o, round } = result;
   await notify([o.ownerId], `Cambio del cliente en #${o.number}: ${body.slice(0, 90)}`, { orderId: id, exclude: u.id, kind: "tarea" });
+  if (round !== null && round > o.revisionRoundsIncluded) {
+    await notify(await usersWithRole("DIRECCION", "ADMINISTRACION"),
+      `#${o.number} ${o.title}: el cliente pidió la ronda ${round} y solo hay ${o.revisionRoundsIncluded} incluidas`,
+      { orderId: id, urgent: true, kind: "urgencia" });
+  }
+  revalidatePath("/ordenes");
+  revalidatePath("/");
   revalidatePath(`/ordenes/${id}`);
   redirect(`/ordenes/${id}#comentarios`);
 }

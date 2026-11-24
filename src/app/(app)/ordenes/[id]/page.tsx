@@ -31,7 +31,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 }
 
 // El siguiente paso más común según la etapa actual.
-function quickMoves(s: Status, director: boolean, owner: string | null, rounds: string): { to: Status; label: string; primary?: boolean }[] {
+function quickMoves(s: Status, director: boolean, owner: string | null): { to: Status; label: string; primary?: boolean }[] {
   switch (s) {
     case "RECIBIDO": return [{ to: "BRIEF_REVISION", label: "Revisar brief", primary: true }];
     case "BRIEF_REVISION": return [{ to: "EN_PRODUCCION", label: "Pasar a producción", primary: true }];
@@ -39,7 +39,7 @@ function quickMoves(s: Status, director: boolean, owner: string | null, rounds: 
     case "REVISION_INTERNA": return director
       ? [{ to: "ENVIADO_CLIENTE", label: "Aprobar y enviar al cliente", primary: true }, { to: "EN_PRODUCCION", label: owner ? `Pedir cambios a ${owner}` : "Pedir cambios" }]
       : [];
-    case "ENVIADO_CLIENTE": return [{ to: "APROBADO", label: "El cliente aprobó", primary: true }, { to: "AJUSTES", label: `El cliente pidió cambios (${rounds})` }];
+    case "ENVIADO_CLIENTE": return [{ to: "APROBADO", label: "El cliente aprobó", primary: true }];
     case "AJUSTES": return [{ to: "REVISION_INTERNA", label: "Ajustes listos: a revisión interna", primary: true }];
     case "APROBADO": return [{ to: "ENTREGADO", label: "Marcar publicado o entregado", primary: true }];
     case "ENTREGADO": return [{ to: "FACTURADO", label: "Marcar facturado", primary: true }];
@@ -92,8 +92,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
   const currentGroupIdx = STAGE_GROUPS.findIndex((g) => g.key === current.key);
   const withinGroup = (current.statuses as readonly string[]).indexOf(o.status);
   const ownerFirst = o.owner?.name.split(" ")[0] ?? null;
-  const roundsText = `ronda ${o.revisionRoundsUsed + 1} de ${o.revisionRoundsIncluded}`;
-  const moves = freelancer ? [] : quickMoves(o.status, isDirector(u.role), ownerFirst, roundsText);
+  const moves = freelancer ? [] : quickMoves(o.status, isDirector(u.role), ownerFirst);
   const visibleTasks = freelancer ? taskRows.filter((t) => t.assigneeId === u.id) : taskRows;
   const late = o.dueDate && o.dueDate < new Date() && idx < STATUSES.indexOf("ENTREGADO");
   const overRounds = o.revisionRoundsUsed > o.revisionRoundsIncluded;
@@ -143,6 +142,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
                 <SubmitButton className={m.primary ? "btn-primary px-6 py-3 text-[15px]" : "btn px-5 py-2.5 text-[15px]"} pendingLabel="Moviendo…">{m.label}</SubmitButton>
               </form>
             ))}
+            {o.status === "ENVIADO_CLIENTE" && <a href="#cambio-cliente" className="btn">El cliente pidió cambios</a>}
             {o.status === "REVISION_INTERNA" && !isDirector(u.role) && <p className="text-sm text-muted">Esperando la aprobación de dirección.</p>}
             {o.status === "PAGO_PROVEEDORES" && <p className="text-sm font-semibold">Orden cerrada.</p>}
             <span className={`ml-auto font-mono text-[13px] ${overRounds ? "font-semibold text-bad" : "text-muted"}`}>
@@ -159,7 +159,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
                 {STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
               </select>
               <label className="sr-only" htmlFor="note">Motivo</label>
-              <input id="note" name="note" placeholder="Motivo (opcional)" className="input w-56" />
+              <input id="note" name="note" placeholder="Motivo si saltas una etapa" className="input w-56" />
               <button className="btn">Mover</button>
             </form>
           </details>
@@ -388,11 +388,28 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
 
           {!freelancer && (
             <>
-              <details className="card group overflow-hidden">
+              <details id="cambio-cliente" className="card group scroll-mt-28 overflow-hidden" open={o.status === "ENVIADO_CLIENTE" || undefined}>
                 <summary className="flex cursor-pointer items-center justify-between px-5 py-4 text-[15px] font-bold">Registrar cambio del cliente <span aria-hidden="true" className="transition-transform group-open:rotate-90">→</span></summary>
                 <form action={registerClientChange.bind(null, id)} className="grid gap-2.5 px-5 pb-5">
                   <label className="sr-only" htmlFor="chg">Qué pidió el cliente</label>
                   <textarea id="chg" name="body" rows={3} required className="input" placeholder="Lo que pidió el cliente, aunque haya sido en persona o por llamada" />
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <label className="grid gap-1 text-sm">Quién pidió el cambio
+                      <input name="requester" className="input" />
+                    </label>
+                    <label className="grid gap-1 text-sm">Canal
+                      <select name="source" className="input" defaultValue="">
+                        <option value="">Selecciona un canal</option>
+                        {["WhatsApp", "Correo", "Llamada", "En persona", "Otro"].map((channel) => <option key={channel}>{channel}</option>)}
+                      </select>
+                    </label>
+                  </div>
+                  {o.status === "ENVIADO_CLIENTE" && (
+                    <label className="flex items-center gap-2 text-sm">
+                      <input type="checkbox" name="countsAsRound" defaultChecked />
+                      Contar una ronda y mover la orden a Ajustes
+                    </label>
+                  )}
                   <p className="text-xs text-muted">Crea una tarea para {ownerFirst ?? "el responsable"} y le avisa.</p>
                   <div><button className="btn-primary">Registrar cambio</button></div>
                 </form>

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { safePath, isUuid, pick } from "./form";
 import { parseAmount, parseRate, toUsd } from "./money";
-import { canMoveTo } from "./order-workflow";
+import { canMoveTo, canTransition } from "./order-workflow";
 import { rateLimit } from "./rate-limit";
 
 describe("safePath", () => {
@@ -65,5 +65,23 @@ describe("rateLimit", () => {
     assert.equal(rateLimit(key, 2, 60_000).ok, true);
     assert.equal(rateLimit(key, 2, 60_000).ok, true);
     assert.equal(rateLimit(key, 2, 60_000).ok, false);
+  });
+});
+
+describe("canTransition", () => {
+  it("permite avanzar un paso y devolver un trabajo desde revisión interna", () => {
+    assert.equal(canTransition({ role: "PRODUCCION" }, "RECIBIDO", "BRIEF_REVISION"), true);
+    assert.equal(canTransition({ role: "PRODUCCION" }, "REVISION_INTERNA", "EN_PRODUCCION"), true);
+  });
+
+  it("exige autorización y motivo para saltar etapas", () => {
+    assert.equal(canTransition({ role: "PRODUCCION" }, "RECIBIDO", "APROBADO", "Solicitud interna"), false);
+    assert.equal(canTransition({ role: "ADMINISTRACION" }, "RECIBIDO", "FACTURADO", "  "), false);
+    assert.equal(canTransition({ role: "ADMINISTRACION" }, "RECIBIDO", "FACTURADO", "Trabajo previo al piloto"), true);
+  });
+
+  it("reserva el envío al cliente a Dirección incluso con un motivo", () => {
+    assert.equal(canTransition({ role: "ADMINISTRACION" }, "REVISION_INTERNA", "ENVIADO_CLIENTE", "Por solicitud"), false);
+    assert.equal(canTransition({ role: "DIRECCION" }, "REVISION_INTERNA", "ENVIADO_CLIENTE"), true);
   });
 });
