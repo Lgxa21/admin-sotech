@@ -7,7 +7,7 @@ import { requireUser, type SessionUser } from "@/lib/auth";
 import { canAccessOrder } from "@/lib/access";
 import { notify, usersWithRole } from "@/lib/notify";
 import { canManage } from "@/lib/perm";
-import { cleanBrief } from "@/lib/briefs";
+import { readOrderDetails, saveOrderReferences } from "@/lib/order-piece-form";
 import {
   STATUSES, SERVICES, PRIORITIES, STATUS_LABEL, fromInputDate, type Status,
 } from "@/lib/labels";
@@ -22,7 +22,7 @@ function orderFields(f: FormData, u: SessionUser) {
     clientId: str(f, "clientId")!,
     serviceType: pick(SERVICES, str(f, "serviceType"), "OTRO"),
     priority: pick(PRIORITIES, str(f, "priority"), "MEDIA"),
-    brief: cleanBrief(str(f, "brief")),
+    brief: str(f, "brief", 12000),
     copy: str(f, "copy"),
     platform: str(f, "platform"),
     formats: str(f, "formats"),
@@ -48,8 +48,10 @@ export async function createOrder(f: FormData) {
   if (!canManage(u.role)) fail("/ordenes/nueva", "Solo dirección o administración crean órdenes.");
   const data = orderFields(f, u);
   if (!isUuid(data.clientId)) fail("/ordenes/nueva", "Elige un cliente.");
+  const details = await readOrderDetails(f).catch((error: Error) => fail("/ordenes/nueva", error.message));
   const o = await db.transaction(async (tx) => {
-    const [row] = await tx.insert(orders).values({ ...data, createdById: u.id }).returning();
+    const [row] = await tx.insert(orders).values({ ...data, pieces: details.pieces, createdById: u.id }).returning();
+    await saveOrderReferences(tx, row.id, details);
     await tx.insert(statusChanges).values({ orderId: row.id, from: null, to: "RECIBIDO", userId: u.id, note: "Orden creada" });
     return row;
   });
@@ -65,7 +67,11 @@ export async function updateOrder(id: string, f: FormData) {
   if (!prev) fail("/ordenes", "La orden no existe.");
   const data = orderFields(f, u);
   if (!isUuid(data.clientId)) fail(`/ordenes/${id}/editar`, "Elige un cliente.");
-  await db.update(orders).set({ ...data, updatedAt: new Date() }).where(eq(orders.id, id));
+  const details = await readOrderDetails(f).catch((error: Error) => fail(`/ordenes/${id}/editar`, error.message));
+  await db.transaction(async (tx) => {
+    await tx.update(orders).set({ ...data, pieces: details.pieces, updatedAt: new Date() }).where(eq(orders.id, id));
+    await saveOrderReferences(tx, id, details);
+  });
   if (data.ownerId && data.ownerId !== prev.ownerId) {
     await notify([data.ownerId], `Te asignaron la orden #${prev.number}: ${data.title}`, { orderId: id, exclude: u.id, kind: "tarea" });
   }

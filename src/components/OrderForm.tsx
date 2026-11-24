@@ -1,24 +1,42 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
 import { SERVICES, SERVICE_LABEL, PRIORITIES, PRIORITY_LABEL, toInputDate } from "@/lib/labels";
-import BriefField from "./BriefField";
+import OrderPiecesFields, { ReferenceField } from "./OrderPiecesFields";
+import { MAX_IMAGE_BYTES, MAX_UPLOAD_BYTES, type OrderPiece, type OrderReference } from "@/lib/order-pieces";
 import SubmitButton from "./SubmitButton";
 
 type Opt = { id: string; name: string };
 type Values = Partial<{
-  title: string; clientId: string; serviceType: string; priority: string; brief: string | null; copy: string | null;
+  id: string; pieces: OrderPiece[]; title: string; clientId: string; serviceType: string; priority: string; brief: string | null; copy: string | null;
   platform: string | null; formats: string | null; referenceLinks: string | null; dueDate: Date | null; ownerId: string | null;
   budget: string | null; currency: string; revisionRoundsIncluded: number; invoiceNumber: string | null; internalNotes: string | null; isRecurring: boolean;
 }>;
 
-export default function OrderForm({ action, clients, people, values = {}, money, submit, cancelHref }: {
-  action: (f: FormData) => Promise<void>; clients: Opt[]; people: Opt[]; values?: Values; money: boolean; submit: string; cancelHref: string;
+export default function OrderForm({ action, clients, people, values = {}, references = [], money, submit, cancelHref }: {
+  action: (f: FormData) => Promise<void>; clients: Opt[]; people: Opt[]; values?: Values; references?: OrderReference[]; money: boolean; submit: string; cancelHref: string;
 }) {
   const v = values;
+  const [error, setError] = useState("");
   return (
-    <form action={action} className="grid gap-5 max-w-3xl">
+    <form action={action} className="grid max-w-3xl gap-5" onSubmit={(event) => {
+      const files = Array.from(event.currentTarget.querySelectorAll<HTMLInputElement>('input[type="file"]'))
+        .flatMap((input) => Array.from(input.files ?? []));
+      let message = "";
+      if (files.some((file) => file.size > MAX_IMAGE_BYTES) || files.reduce((total, file) => total + file.size, 0) > MAX_UPLOAD_BYTES) {
+        message = "Las fotos deben pesar hasta 5 MB cada una y 15 MB en total por guardado.";
+      } else if (files.length > 30) {
+        message = "Adjunta hasta 30 fotos por guardado.";
+      } else if (files.some((file) => !["image/jpeg", "image/png", "image/webp"].includes(file.type))) {
+        message = "Selecciona imágenes JPG, PNG o WebP.";
+      }
+      setError(message);
+      if (message) event.preventDefault();
+    }}>
       <section className="card p-5 grid gap-4">
-        <h2 className="h2">Lo básico</h2>
-        <Field label="Título de la orden" id="title"><input id="title" name="title" required defaultValue={v.title} placeholder="Ej.: 12 posts de noviembre" className="input" /></Field>
+        <h2 className="h2">Datos del pedido</h2>
+        <Field label="Título de la orden" id="title"><input id="title" name="title" required defaultValue={v.title} placeholder="Ej. Exhibidor para punto de venta" className="input" /></Field>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Cliente" id="clientId">
             <select id="clientId" name="clientId" required defaultValue={v.clientId ?? ""} className="input">
@@ -28,7 +46,8 @@ export default function OrderForm({ action, clients, people, values = {}, money,
             <Link href="/clientes/nuevo?next=orden" className="mt-1 inline-block text-xs font-semibold text-ink underline">+ Cliente nuevo</Link>
           </Field>
           <Field label="Tipo de servicio" id="serviceType">
-            <select id="serviceType" name="serviceType" defaultValue={v.serviceType ?? "REDES_SOCIALES"} className="input">
+            <select id="serviceType" name="serviceType" defaultValue={v.serviceType ?? ""} required className="input">
+              <option value="" disabled>Elige un servicio</option>
               {SERVICES.map((s) => <option key={s} value={s}>{SERVICE_LABEL[s]}</option>)}
             </select>
           </Field>
@@ -44,24 +63,30 @@ export default function OrderForm({ action, clients, people, values = {}, money,
             </select>
           </Field>
           <Field label="Fecha de entrega" id="dueDate"><input id="dueDate" name="dueDate" type="date" defaultValue={toInputDate(v.dueDate)} className="input" /></Field>
+        </div>
+      </section>
+
+      <OrderPiecesFields initial={v.pieces ?? []} references={references} orderId={v.id} />
+
+      <details className="card p-5" open={v.brief || v.copy || v.platform || v.formats || v.referenceLinks || references.some((file) => !file.pieceId) ? true : undefined}>
+        <summary className="cursor-pointer font-bold">Indicaciones y referencias generales</summary>
+        <div className="mt-4 grid gap-4">
+          <Field label="¿Qué debe saber el equipo sobre todo el pedido?" id="brief">
+            <textarea id="brief" name="brief" rows={3} maxLength={12000} defaultValue={v.brief ?? ""} className="input" placeholder="Ej. Va en el pasillo principal. Respetar los colores de cada marca." />
+          </Field>
+          <ReferenceField field="order" orderId={v.id} references={references.filter((file) => !file.pieceId)} />
+          <Field label="Enlaces de referencia" id="referenceLinks"><textarea id="referenceLinks" name="referenceLinks" rows={2} defaultValue={v.referenceLinks ?? ""} placeholder="https://drive.google.com/…" className="input" /></Field>
+          {v.copy && <Field label="Textos generales" id="copy"><textarea id="copy" name="copy" rows={2} defaultValue={v.copy} className="input" /></Field>}
+          {v.platform && <Field label="Plataforma" id="platform"><input id="platform" name="platform" defaultValue={v.platform} className="input" /></Field>}
+          {v.formats && <Field label="Formatos y medidas generales" id="formats"><input id="formats" name="formats" defaultValue={v.formats} className="input" /></Field>}
+        </div>
+      </details>
+
+      <details className="card p-5">
+        <summary className="cursor-pointer font-bold">Administración y notas internas</summary>
+        <div className="mt-4 grid gap-4">
           <Field label="Rondas de revisión incluidas" id="revisionRoundsIncluded"><input id="revisionRoundsIncluded" name="revisionRoundsIncluded" type="number" min={0} max={10} defaultValue={v.revisionRoundsIncluded ?? 2} className="input" /></Field>
-        </div>
-        <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="isRecurring" defaultChecked={v.isRecurring} className="h-4 w-4 accent-[#111111]" />Es parte de un trabajo recurrente (iguala)</label>
-      </section>
-
-      <section className="card p-5 grid gap-4">
-        <h2 className="h2">Brief</h2>
-        <Field label="Descripción del pedido (se llena con las preguntas del servicio)" id="brief"><BriefField serviceSelectId="serviceType" defaultValue={v.brief} /></Field>
-        <Field label="Copy / textos" id="copy"><textarea id="copy" name="copy" rows={3} defaultValue={v.copy ?? ""} className="input" /></Field>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Red social o plataforma" id="platform"><input id="platform" name="platform" defaultValue={v.platform ?? ""} placeholder="Instagram, TikTok, impresión…" className="input" /></Field>
-          <Field label="Formatos y medidas" id="formats"><input id="formats" name="formats" defaultValue={v.formats ?? ""} placeholder="1080×1350, historia, 60×90 cm…" className="input" /></Field>
-        </div>
-        <Field label="Archivos de referencia (enlaces, uno por línea)" id="referenceLinks"><textarea id="referenceLinks" name="referenceLinks" rows={2} defaultValue={v.referenceLinks ?? ""} placeholder="https://drive.google.com/…" className="input" /></Field>
-      </section>
-
-      <section className="card p-5 grid gap-4">
-        <h2 className="h2">Interno</h2>
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="isRecurring" defaultChecked={v.isRecurring} /> Es parte de una iguala</label>
         {money && (
           <div className="grid gap-4 sm:grid-cols-3">
             <Field label="Presupuesto / precio" id="budget"><input id="budget" name="budget" inputMode="decimal" defaultValue={v.budget?.replace(".", ",") ?? ""} placeholder="0,00" className="input tabular" /></Field>
@@ -72,8 +97,10 @@ export default function OrderForm({ action, clients, people, values = {}, money,
           </div>
         )}
         <Field label="Notas internas (el cliente no las ve)" id="internalNotes"><textarea id="internalNotes" name="internalNotes" rows={3} defaultValue={v.internalNotes ?? ""} className="input" /></Field>
-      </section>
+        </div>
+      </details>
 
+      {error && <p role="alert" className="text-sm font-semibold text-bad">{error}</p>}
       <div className="flex gap-2"><SubmitButton pendingLabel="Guardando…">{submit}</SubmitButton><Link href={cancelHref} className="btn">Cancelar</Link></div>
     </form>
   );
