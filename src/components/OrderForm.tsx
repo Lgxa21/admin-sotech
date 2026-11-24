@@ -20,7 +20,7 @@ export default function OrderForm({ action, clients, people, values = {}, refere
   const v = values;
   const [error, setError] = useState("");
   return (
-    <form action={action} className="grid max-w-3xl gap-5" onSubmit={(event) => {
+    <form action={action} className="order-form grid w-full min-w-0 max-w-3xl gap-3 sm:gap-5" onSubmit={(event) => {
       const files = Array.from(event.currentTarget.querySelectorAll<HTMLInputElement>('input[type="file"]'))
         .flatMap((input) => Array.from(input.files ?? []));
       let message = "";
@@ -34,7 +34,7 @@ export default function OrderForm({ action, clients, people, values = {}, refere
       setError(message);
       if (message) event.preventDefault();
     }}>
-      <section className="card p-5 grid gap-4">
+      <section className="card grid gap-3 p-3 sm:gap-4 sm:p-5">
         <h2 className="h2">Datos del pedido</h2>
         <Field label="Título de la orden" id="title"><input id="title" name="title" required defaultValue={v.title} placeholder="Ej. Exhibidor para punto de venta" className="input" /></Field>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -68,7 +68,7 @@ export default function OrderForm({ action, clients, people, values = {}, refere
 
       <OrderPiecesFields initial={v.pieces ?? []} references={references} orderId={v.id} />
 
-      <details className="card p-5" open={v.brief || v.copy || v.platform || v.formats || v.referenceLinks || references.some((file) => !file.pieceId) ? true : undefined}>
+      <details className="card p-3 sm:p-5" open={v.brief || v.copy || v.platform || v.formats || v.referenceLinks || references.some((file) => !file.pieceId) ? true : undefined}>
         <summary className="cursor-pointer font-bold">Indicaciones y referencias generales</summary>
         <div className="mt-4 grid gap-4">
           <Field label="¿Qué debe saber el equipo sobre todo el pedido?" id="brief">
@@ -82,7 +82,7 @@ export default function OrderForm({ action, clients, people, values = {}, refere
         </div>
       </details>
 
-      <details className="card p-5">
+      <details className="card p-3 sm:p-5">
         <summary className="cursor-pointer font-bold">Administración y notas internas</summary>
         <div className="mt-4 grid gap-4">
           <Field label="Rondas de revisión incluidas" id="revisionRoundsIncluded"><input id="revisionRoundsIncluded" name="revisionRoundsIncluded" type="number" min={0} max={10} defaultValue={v.revisionRoundsIncluded ?? 2} className="input" /></Field>

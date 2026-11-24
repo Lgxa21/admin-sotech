@@ -23,7 +23,7 @@
 }
 
 html, body { background: rgb(var(--canvas)); color: rgb(var(--ink)); }
-body { font-family: var(--font-body); -webkit-font-smoothing: antialiased; }
+body { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; font-family: var(--font-body); -webkit-font-smoothing: antialiased; }
 a { color: inherit; }
 
 @layer components {
@@ -42,6 +42,16 @@ a { color: inherit; }
   .tag { @apply inline-flex items-center rounded-lg px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.04em]; }
   .tabular { font-variant-numeric: tabular-nums; }
   .wide { font-stretch: 112%; }
+}
+
+.order-form .input { min-width: 0; max-width: 100%; }
+@media (max-width: 639px) {
+  /* Safari amplía la página al enfocar un campo con texto inferior a 16 px. */
+  .input { font-size: 16px; }
+  .order-form .input { padding-inline: 0.625rem; }
+}
+@supports (overflow: clip) {
+  #contenido { overflow-x: clip; }
 }
 
 /* Los hijos de una grilla pueden encogerse; el contenido ancho hace scroll dentro de su propio contenedor. */
