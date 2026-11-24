@@ -14,7 +14,7 @@ export async function GET(req: Request) {
   sheet(wb, "Resumen", [{ header: "Concepto", key: "k", width: 40 }, { header: "USD", key: "v", width: 16, money: true }], [
     { k: "Cobrado en el mes", v: r.totals.in },
     { k: "Pagado a proveedores y gastos", v: r.totals.out },
-    { k: "Queda en caja", v: r.totals.net },
+    { k: "Flujo neto del mes", v: r.totals.net },
     { k: "Precio de las órdenes del mes", v: r.totals.price },
     { k: "Costos de las órdenes del mes", v: r.totals.costs },
     { k: "Margen de las órdenes del mes", v: r.totals.price - r.totals.costs },

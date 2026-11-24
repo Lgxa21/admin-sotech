@@ -73,7 +73,7 @@ const DEFAULT_DOCS: { category: string; title: string; body: string }[] = [
   {
     category: "proceso",
     title: "Cierre de mes",
-    body: `- Revisar en Finanzas → Resumen lo cobrado, lo pagado y lo que queda en caja.
+    body: `- Revisar en Finanzas → Resumen lo cobrado, lo pagado y el flujo neto del mes.
 - Revisar “Por cobrar” y enviar recordatorios de pago (ver mensajes predefinidos).
 - Revisar “Pagos” y pagar lo pendiente a proveedores y freelancers.
 - Revisar la rentabilidad por cliente del mes.

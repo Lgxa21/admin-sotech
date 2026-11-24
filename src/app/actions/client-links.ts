@@ -3,7 +3,7 @@ import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { and, asc, eq } from "drizzle-orm";
-import { db, approvalLinks, orders, clients, comments, tasks, statusChanges, users } from "@/db";
+import { db, approvalLinks, orders, clients, comments, statusChanges, users } from "@/db";
 import { requireUser } from "@/lib/auth";
 import { canAccessOrder } from "@/lib/access";
 import { canManage } from "@/lib/perm";
@@ -12,6 +12,7 @@ import { SERVICES, fromInputDate } from "@/lib/labels";
 import { cleanBrief } from "@/lib/briefs";
 import { str, fail } from "@/lib/form";
 import { rateLimit } from "@/lib/rate-limit";
+import { invalidateApprovalLinks, recordClientRevision } from "@/lib/client-revisions";
 import { headers } from "next/headers";
 
 const token = () => randomBytes(18).toString("base64url");
@@ -27,14 +28,16 @@ async function publicLimit(key: string, path: string) {
 export async function createApprovalLink(orderId: string, f: FormData) {
   const u = await requireUser();
   if (u.role === "FREELANCER" || !(await canAccessOrder(u, orderId))) redirect(`/ordenes/${orderId}`);
-  const o = await db.query.orders.findFirst({ where: eq(orders.id, orderId) });
-  if (!o) redirect("/ordenes");
-  if (o.status !== "ENVIADO_CLIENTE") redirect(`/ordenes/${orderId}?error=${encodeURIComponent("Primero dirección debe aprobar la pieza y enviarla al cliente.")}`);
   const pieceUrl = str(f, "pieceUrl", 2000);
-  if (pieceUrl && !/^https?:\/\//i.test(pieceUrl)) redirect(`/ordenes/${orderId}?error=${encodeURIComponent("El enlace de la pieza debe empezar por https://")}#cliente`);
-  await db.update(approvalLinks).set({ status: "ANULADO" }).where(and(eq(approvalLinks.orderId, orderId), eq(approvalLinks.status, "PENDIENTE")));
-  await db.insert(approvalLinks).values({
-    orderId, token: token(), pieceUrl, message: str(f, "message"), round: o.revisionRoundsUsed + 1, createdById: u.id,
+  if (pieceUrl && !/^https?:\/\//i.test(pieceUrl)) fail(`/ordenes/${orderId}`, "El enlace de la pieza debe empezar por https://");
+  await db.transaction(async (tx) => {
+    const [order] = await tx.select().from(orders).where(eq(orders.id, orderId)).for("update");
+    if (!order) redirect("/ordenes");
+    if (order.status !== "ENVIADO_CLIENTE") fail(`/ordenes/${orderId}`, "Primero dirección debe aprobar la pieza y enviarla al cliente.");
+    await invalidateApprovalLinks(tx, orderId);
+    await tx.insert(approvalLinks).values({
+      orderId, token: token(), pieceUrl, message: str(f, "message"), round: order.revisionRoundsUsed + 1, createdById: u.id,
+    });
   });
   revalidatePath(`/ordenes/${orderId}`);
   redirect(`/ordenes/${orderId}#cliente`);
@@ -59,40 +62,41 @@ export async function respondApproval(tok: string, f: FormData) {
   const comment = str(f, "comment");
   const who = str(f, "name", 120);
   if (decision === "CAMBIOS" && !comment) redirect(`/aprobar/${tok}?error=${encodeURIComponent("Cuéntanos qué cambios necesitas.")}`);
-  const o = link.order;
   const by = who ? `${who} (cliente)` : "El cliente";
   const now = new Date();
 
-  await db.transaction(async (tx) => {
+  const result = await db.transaction(async (tx) => {
+    const [o] = await tx.select().from(orders).where(eq(orders.id, link.orderId)).for("update");
+    if (!o || o.status !== "ENVIADO_CLIENTE" || link.round !== o.revisionRoundsUsed + 1) return null;
     const [updated] = await tx.update(approvalLinks)
       .set({ status: decision, clientName: who, clientComment: comment, respondedAt: now })
       .where(and(eq(approvalLinks.id, link.id), eq(approvalLinks.status, "PENDIENTE")))
       .returning();
-    if (!updated) return; // otra respuesta ganó la carrera
+    if (!updated) return null;
 
     if (decision === "APROBADO") {
       await tx.update(orders).set({ status: "APROBADO", statusChangedAt: now, updatedAt: now }).where(eq(orders.id, o.id));
       await tx.insert(statusChanges).values({ orderId: o.id, from: o.status, to: "APROBADO", userId: link.createdById, note: `${by} aprobó desde el enlace` });
       await tx.insert(comments).values({ orderId: o.id, authorId: link.createdById, kind: "cambio_cliente", body: `${by} aprobó la pieza (ronda ${link.round}).${comment ? `\n\n"${comment}"` : ""}` });
-    } else {
-      const rounds = o.revisionRoundsUsed + 1;
-      await tx.update(orders).set({ status: "AJUSTES", statusChangedAt: now, updatedAt: now, revisionRoundsUsed: rounds }).where(eq(orders.id, o.id));
-      await tx.insert(statusChanges).values({ orderId: o.id, from: o.status, to: "AJUSTES", userId: link.createdById, note: `${by} pidió cambios desde el enlace` });
-      await tx.insert(comments).values({ orderId: o.id, authorId: link.createdById, kind: "cambio_cliente", body: `${by} pidió cambios (ronda ${rounds}):\n\n${comment}` });
-      await tx.insert(tasks).values({ orderId: o.id, title: `Cambios del cliente, ronda ${rounds}`, notes: comment, assigneeId: o.ownerId, createdById: link.createdById, status: "PENDIENTE" });
+      await invalidateApprovalLinks(tx, o.id);
+      return { order: o, rounds: o.revisionRoundsUsed };
     }
+    const rounds = await recordClientRevision(tx, o, link.createdById, comment!, `${by} pidió cambios desde el enlace`, now);
+    return { order: o, rounds };
   });
+  if (!result) redirect(`/aprobar/${tok}`);
+  const { order: o, rounds } = result;
 
   // Notificaciones fuera de la transacción (canales externos).
   if (decision === "APROBADO") {
     await notify([o.ownerId, link.createdById, ...(await usersWithRole("DIRECCION"))], `${by} aprobó #${o.number} ${o.title}`, { orderId: o.id, kind: "cliente" });
-    await notify(await usersWithRole("ADMINISTRACION"), `#${o.number} ${o.title} está lista para facturar`, { orderId: o.id, kind: "finanzas" });
   } else {
-    const rounds = o.revisionRoundsUsed + 1;
     const over = rounds > o.revisionRoundsIncluded;
     await notify([o.ownerId, link.createdById], `${by} pidió cambios en #${o.number}: ${(comment ?? "").slice(0, 90)}`, { orderId: o.id, kind: "tarea" });
     if (over) await notify(await usersWithRole("DIRECCION", "ADMINISTRACION"), `#${o.number} ${o.title}: el cliente pidió la ronda ${rounds} y solo hay ${o.revisionRoundsIncluded} incluidas`, { orderId: o.id, urgent: true, kind: "urgencia" });
   }
+  revalidatePath("/ordenes");
+  revalidatePath("/");
   revalidatePath(`/ordenes/${o.id}`);
   redirect(`/aprobar/${tok}?ok=1`);
 }
