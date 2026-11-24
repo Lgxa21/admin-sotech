@@ -10,12 +10,13 @@ const TABS = [
   { href: "/finanzas/igualas", label: "Igualas" },
 ];
 
-export default function FinanceTabs() {
+export default function FinanceTabs({ showCommissions }: { showCommissions: boolean }) {
   const path = usePathname();
   const active = (h: string) => (h === "/finanzas" ? path === h : path.startsWith(h));
+  const tabs = showCommissions ? [...TABS, { href: "/finanzas/comisiones", label: "Comisiones" }] : TABS;
   return (
     <nav aria-label="Secciones de finanzas" className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1">
-      {TABS.map((t) => (
+      {tabs.map((t) => (
         <Link key={t.href} href={t.href} aria-current={active(t.href) ? "page" : undefined}
           className={`shrink-0 rounded-full px-4 py-2 text-sm font-bold transition-colors ${active(t.href) ? "bg-yellow text-ink" : "bg-paper text-muted hover:text-ink"}`}>
           {t.label}
