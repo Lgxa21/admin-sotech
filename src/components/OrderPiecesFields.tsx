@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
-import { MAX_PIECES, PIECE_UNITS, referenceUrl, type OrderPiece, type OrderReference } from "@/lib/order-pieces";
+import { MAX_PIECES, PIECE_DIRECTIONS, PIECE_UNITS, referenceUrl, type OrderPiece, type OrderReference } from "@/lib/order-pieces";
 
 const browserId = () => crypto.randomUUID();
 
@@ -122,10 +122,15 @@ function PieceFields({ id, index, values, references, orderId, remove }: {
             </select>
           </label>
         </div>
-        <label className="grid gap-1 text-sm font-semibold">Indicaciones para esta pieza
-          <textarea className="input" name={key("instructions")} rows={2} maxLength={5000} defaultValue={values?.instructions}
-            placeholder="Ej. Adaptar el exhibidor a cuatro niveles." />
-        </label>
+        <div className="grid gap-2.5 sm:grid-cols-2">
+          {PIECE_DIRECTIONS.map(({ key: kind, label, placeholder }) => (
+            <label key={kind} className="grid gap-1 text-sm font-semibold">{label}
+              <textarea className="input min-h-11" name={key(`direction:${kind}`)} rows={2}
+                maxLength={kind === "design" ? 5000 : 600} placeholder={placeholder}
+                defaultValue={values?.directions?.[kind] || (kind === "design" ? values?.instructions : "")} />
+            </label>
+          ))}
+        </div>
         <ReferenceField field={id} references={references} orderId={orderId} />
         <details open={values?.components.length || values?.material || values?.finish || values?.copy ? true : undefined} className="group rounded-xl border border-line">
           <summary className="flex min-h-11 cursor-pointer items-center justify-between gap-2 px-3 py-2 text-sm font-semibold">

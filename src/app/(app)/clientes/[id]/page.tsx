@@ -9,6 +9,8 @@ import { moneyByOrder } from "@/lib/finance";
 import { baseUrl } from "@/lib/url";
 import { enableRequestLink, disableRequestLink } from "@/app/actions/client-links";
 import StatusBadge from "@/components/StatusBadge";
+import ClientBrandGuides from "@/components/ClientBrandGuides";
+import { listBrandGuides } from "@/lib/brand-guides";
 import CopyLink from "@/components/CopyLink";
 
 export const dynamic = "force-dynamic";
@@ -18,11 +20,12 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
   const { id } = await params;
   const c = await db.query.clients.findFirst({ where: eq(clients.id, id) });
   if (!c) notFound();
-  const [list, [paid], deals, base] = await Promise.all([
+  const [list, [paid], deals, base, guides] = await Promise.all([
     db.select().from(orders).where(eq(orders.clientId, id)).orderBy(desc(orders.number)),
     db.select({ t: sql<string>`coalesce(sum(${payments.amountUsd}), 0)` }).from(payments).where(eq(payments.clientId, id)),
     db.select().from(retainers).where(and(eq(retainers.clientId, id), eq(retainers.active, true))),
     baseUrl(),
+    listBrandGuides(id),
   ]);
   const mm = await moneyByOrder(list.filter((o) => ["APROBADO", "ENTREGADO", "FACTURADO", "PAGO_PROVEEDORES"].includes(o.status) && o.budget));
   const pending = [...mm.values()].reduce((a, m) => a + m.pending, 0);
@@ -38,6 +41,7 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
           <h1 className="h1">{c.name}</h1>
         </div>
         <div className="flex flex-wrap gap-2">
+          <a href="#marcas" className="btn">Marcas y manuales</a>
           <Link href={`/clientes/${id}/editar`} className="btn">Editar</Link>
           <Link href={`/finanzas/cotizaciones/nueva?cliente=${id}`} className="btn">Cotizar</Link>
           <Link href={`/ordenes/nueva?cliente=${id}`} className="btn-primary">+ Nueva orden</Link>
@@ -53,13 +57,14 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
         </div>
       </div>
 
+      <ClientBrandGuides clientId={id} guides={guides} previousUrl={c.brandManualUrl} />
+
       <div className="grid gap-5 lg:grid-cols-[320px_minmax(0,1fr)]">
         <div className="grid content-start gap-5">
           <section className="card grid content-start gap-3 p-6">
             <D label="Contacto">{[c.contactName, c.contactPhone, c.contactEmail].filter(Boolean).join("\n")}</D>
             <D label="RIF">{c.taxId}</D>
             <D label="Renovación">{c.renewalDate ? fmtDate(c.renewalDate) : null}</D>
-            <D label="Manual de marca">{c.brandManualUrl ? <a href={c.brandManualUrl} target="_blank" rel="noreferrer" className="font-semibold underline">Abrir</a> : null}</D>
             <D label="Contrato y servicios">{c.contractNotes}</D>
             <D label="Redes">{c.socialNotes}</D>
             <D label="Notas">{c.notes}</D>

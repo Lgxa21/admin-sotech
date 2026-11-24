@@ -43,6 +43,13 @@
       "when": 1795546800000,
       "tag": "0005_order_pieces",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1795558547827,
+      "tag": "0006_brand_guides",
+      "breakpoints": true
     }
   ]
 }
