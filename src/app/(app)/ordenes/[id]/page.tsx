@@ -1,3 +1,5 @@
+import OrderPieceSummary, { ReferenceGallery } from "@/components/OrderPieceSummary";
+import { listOrderReferences } from "@/lib/order-piece-form";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { asc, desc, eq } from "drizzle-orm";
@@ -67,6 +69,8 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
     db.select({ id: users.id, name: users.name, role: users.role }).from(users).where(eq(users.active, true)).orderBy(asc(users.name)),
   ]);
 
+  const references = await listOrderReferences(id);
+  const generalReferences = references.filter((file) => !file.pieceId);
   const seeMoney = canSeeMoney(u.role);
   const [payRows, costRows, supplierList, moneyMap]: [
     (typeof payments.$inferSelect)[],
@@ -201,17 +205,22 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
 
       <div className="flex flex-wrap items-start gap-5">
         <div className="grid min-w-0 flex-[999_1_420px] gap-5">
+          <OrderPieceSummary orderId={id} pieces={o.pieces} references={references} />
+          {(o.brief || o.copy || o.platform || o.formats || o.referenceLinks || generalReferences.length > 0 || !o.pieces.length) && (
           <section aria-labelledby="brief" className="card grid gap-3 px-6 py-6">
-            <h2 id="brief" className="h2">Brief</h2>
-            {o.brief ? <p className="max-w-[62ch] whitespace-pre-line text-[15px] leading-relaxed">{o.brief}</p> : <p className="text-muted">Todavía no hay brief.</p>}
+            <h2 id="brief" className="h2">Indicaciones y referencias generales</h2>
+            {o.brief ? <p className="max-w-[62ch] whitespace-pre-line text-[15px] leading-relaxed">{o.brief}</p> : (!o.pieces.length && !generalReferences.length) ? <p className="text-muted">Todavía no hay indicaciones generales.</p> : null}
             {o.copy && <div className="grid gap-1"><p className="label">Copy / textos</p><p className="max-w-[62ch] whitespace-pre-line text-[15px]">{o.copy}</p></div>}
             {(o.platform || o.formats) && <p className="font-mono text-[13px] text-muted">{[o.platform, o.formats].filter(Boolean).join(" · ")}</p>}
+            <ReferenceGallery orderId={id} references={generalReferences} />
             {o.referenceLinks && (
               <ul className="grid gap-1 text-sm">{o.referenceLinks.split(/\s+/).filter(Boolean).map((l, i) => (
                 <li key={i} className="truncate">{/^https?:\/\//.test(l) ? <a href={l} target="_blank" rel="noreferrer" className="font-semibold underline">{l}</a> : l}</li>
               ))}</ul>
             )}
           </section>
+
+          )}
 
           <section id="tareas" aria-labelledby="tareas-t" className="card grid scroll-mt-24 gap-3.5 px-6 py-6">
             <div className="flex items-baseline justify-between">

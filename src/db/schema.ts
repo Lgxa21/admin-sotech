@@ -1,8 +1,9 @@
 // Sistema administrativo Sotech - Caracasprint
 // Fase 1 (núcleo): usuarios y roles, clientes, órdenes, tareas, comentarios, historial y avisos.
 import {
-  pgTable, pgEnum, uuid, text, integer, boolean, timestamp, numeric, jsonb, serial, index, date, uniqueIndex, type AnyPgColumn,
+  pgTable, pgEnum, uuid, text, integer, boolean, timestamp, numeric, jsonb, serial, index, date, uniqueIndex, customType, type AnyPgColumn,
 } from "drizzle-orm/pg-core";
+import type { OrderPiece } from "@/lib/order-pieces";
 import { relations } from "drizzle-orm";
 
 export const roleEnum = pgEnum("role", ["DIRECCION", "ADMINISTRACION", "PRODUCCION", "FREELANCER"]);
@@ -76,6 +77,7 @@ export const orders = pgTable("orders", {
   status: orderStatusEnum("status").notNull().default("RECIBIDO"),
   priority: priorityEnum("priority").notNull().default("MEDIA"),
   brief: text("brief"),
+  pieces: jsonb("pieces").$type<OrderPiece[]>().notNull().default([]),
   copy: text("copy"),
   platform: text("platform"),
   formats: text("formats"),
@@ -102,6 +104,17 @@ export const orders = pgTable("orders", {
   index("orders_due_idx").on(t.dueDate), index("orders_status_changed_idx").on(t.statusChangedAt),
   uniqueIndex("orders_retainer_period_idx").on(t.retainerId, t.period),
 ]);
+
+const binary = customType<{ data: Buffer }>({ dataType: () => "bytea" });
+
+export const orderReferences = pgTable("order_references", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  orderId: uuid("order_id").notNull().references(() => orders.id, { onDelete: "cascade" }),
+  pieceId: uuid("piece_id"),
+  name: text("name").notNull(),
+  contentType: text("content_type").notNull(),
+  data: binary("data").notNull(),
+}, (t) => [index("order_references_order_idx").on(t.orderId)]);
 
 export type ChecklistItem = { text: string; done: boolean };
 
