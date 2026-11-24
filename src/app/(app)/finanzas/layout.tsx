@@ -1,12 +1,13 @@
 import { after } from "next/server";
 import { requireRole } from "@/lib/auth";
+import { isDirector } from "@/lib/perm";
 import { rateFor, ensureTodayRate } from "@/lib/rates";
 import { rateText, todayCaracas, fmtDay } from "@/lib/money";
 import { setRate, refreshBcvRate } from "@/app/actions/finance";
 import FinanceTabs from "@/components/FinanceTabs";
 
 export default async function FinanceLayout({ children }: { children: React.ReactNode }) {
-  await requireRole("DIRECCION", "ADMINISTRACION");
+  const user = await requireRole("DIRECCION", "ADMINISTRACION");
   const today = todayCaracas();
   after(() => { void ensureTodayRate().catch(() => 0); });
   // Si aún no hay tasa, la pedimos en el camino (primera visita del día).
@@ -40,7 +41,7 @@ export default async function FinanceLayout({ children }: { children: React.Reac
           </form>
         </details>
       </div>
-      <FinanceTabs />
+      <FinanceTabs showCommissions={isDirector(user.role)} />
       {children}
     </div>
   );

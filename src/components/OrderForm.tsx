@@ -64,7 +64,7 @@ export default function OrderForm({ action, clients, people, values = {}, money,
         <h2 className="h2">Interno</h2>
         {money && (
           <div className="grid gap-4 sm:grid-cols-3">
-            <Field label="Presupuesto / precio" id="budget"><input id="budget" name="budget" inputMode="decimal" defaultValue={v.budget ?? ""} placeholder="0,00" className="input tabular" /></Field>
+            <Field label="Presupuesto / precio" id="budget"><input id="budget" name="budget" inputMode="decimal" defaultValue={v.budget?.replace(".", ",") ?? ""} placeholder="0,00" className="input tabular" /></Field>
             <Field label="Moneda" id="currency">
               <select id="currency" name="currency" defaultValue={v.currency ?? "USD"} className="input"><option value="USD">USD</option><option value="VES">Bolívares</option></select>
             </Field>
