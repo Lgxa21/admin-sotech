@@ -4,6 +4,7 @@ import {
   pgTable, pgEnum, uuid, text, integer, boolean, timestamp, numeric, jsonb, serial, index, date, uniqueIndex, customType, type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 import type { OrderPiece } from "@/lib/order-pieces";
+import type { Costing } from "@/lib/costing";
 import { relations, sql } from "drizzle-orm";
 
 export const roleEnum = pgEnum("role", ["DIRECCION", "ADMINISTRACION", "PRODUCCION", "FREELANCER"]);
@@ -104,6 +105,13 @@ export const orders = pgTable("orders", {
   index("orders_due_idx").on(t.dueDate), index("orders_status_changed_idx").on(t.statusChangedAt),
   uniqueIndex("orders_retainer_period_idx").on(t.retainerId, t.period),
 ]);
+
+export const orderCostings = pgTable("order_costings", {
+  orderId: uuid("order_id").primaryKey().references(() => orders.id, { onDelete: "cascade" }),
+  costing: jsonb("costing").$type<Costing>().notNull(),
+  updatedAt: ts("updated_at").notNull().defaultNow(),
+  updatedById: uuid("updated_by_id").references(() => users.id, { onDelete: "set null" }),
+});
 
 const binary = customType<{ data: Buffer }>({ dataType: () => "bytea" });
 
