@@ -269,7 +269,10 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
             <section id="dinero" aria-labelledby="dinero-t" className="card grid scroll-mt-24 gap-5 px-6 py-6">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <h2 id="dinero-t" className="h2">Dinero</h2>
-                <span className="text-sm text-muted">Montos en USD</span>
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="text-sm text-muted">Montos en USD</span>
+                  {isDirector(u.role) && <Link href={`/ordenes/${id}/costeo`} className="btn btn-sm">Costeo de la orden</Link>}
+                </div>
               </div>
               {!o.budget && <p className="rounded-[14px] bg-yellow/30 px-4 py-3 text-sm">Esta orden no tiene precio. <Link href={`/ordenes/${id}/editar`} className="font-bold underline">Agrégalo</Link> para calcular lo que falta por cobrar y el margen.</p>}
               <dl className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
