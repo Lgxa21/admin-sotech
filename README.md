@@ -48,6 +48,8 @@ Cambios al modelo de datos: editar `src/db/schema.ts` y correr `npm run db:gener
 
 **Content Studio.** En el servicio `sistema`, configura `CONTENT_STUDIO_ENABLED=true`, el origen HTTPS del Site privado en `CONTENT_STUDIO_SITE_ORIGIN` y su credencial de servicio en `CONTENT_STUDIO_SITE_TOKEN`. Para suspender el módulo, cambia `CONTENT_STUDIO_ENABLED` a `false` y aplica el cambio en Railway. El menú y las rutas de los recursos quedan bloqueados para el equipo al completar el despliegue. El estudio mantiene los proyectos en el navegador. Para trasladarlos desde el sitio original, usa **Descargar respaldo** en el sitio y **Restaurar respaldo** en el módulo.
 
+Las versiones publicadas en el Site privado se cargan al abrir o recargar **Content Studio** en Sotech. En **Clientes → Marcas y manuales**, agrega los colores HEX y abre **Recursos para Content Studio** para registrar la figura, los logos, el símbolo y los archivos de fuente. El editor aplica esos recursos al seleccionar la marca. Dirección y Administración pueden consultar las marcas de clientes activos. Producción puede consultar las de sus órdenes.
+
 Variables necesarias: `DATABASE_URL`, `SESSION_SECRET` (obligatorio, mínimo 16 caracteres; sin él la app no firma sesiones), `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_NAME`. `PUBLIC_URL` (la dirección pública del sistema, para los enlaces de avisos y del cliente).
 
 SSL a Postgres: `DATABASE_SSL=true` verifica el certificado. Solo si el host lo exige, agrega `DATABASE_SSL_INSECURE=true`.

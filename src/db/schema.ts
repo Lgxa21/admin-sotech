@@ -4,6 +4,7 @@ import {
   pgTable, pgEnum, uuid, text, integer, boolean, timestamp, numeric, jsonb, serial, index, date, uniqueIndex, customType, type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 import type { OrderPiece } from "@/lib/order-pieces";
+import type { StudioBrandAsset, StudioShape } from "@/lib/studio-brand-fields";
 import { relations, sql } from "drizzle-orm";
 
 export const roleEnum = pgEnum("role", ["DIRECCION", "ADMINISTRACION", "PRODUCCION", "FREELANCER"]);
@@ -117,6 +118,7 @@ export const brandGuides = pgTable("brand_guides", {
   typography: text("typography"),
   logoRules: text("logo_rules"),
   notes: text("notes"),
+  studioShape: text("studio_shape").$type<StudioShape>().notNull().default("none"),
   fileName: text("file_name"),
   fileType: text("file_type"),
   fileData: binary("file_data"),
@@ -124,6 +126,14 @@ export const brandGuides = pgTable("brand_guides", {
   uniqueIndex("brand_guides_company_idx").on(t.clientId).where(sql`${t.isCompany}`),
   uniqueIndex("brand_guides_subbrand_idx").on(t.clientId, sql`lower(${t.name})`).where(sql`not ${t.isCompany}`),
 ]);
+
+export const studioBrandAssets = pgTable("studio_brand_assets", {
+  guideId: uuid("guide_id").notNull().references(() => brandGuides.id, { onDelete: "cascade" }),
+  kind: text("kind").$type<StudioBrandAsset>().notNull(),
+  name: text("name").notNull(),
+  contentType: text("content_type").notNull(),
+  data: binary("data").notNull(),
+}, (t) => [uniqueIndex("studio_brand_assets_guide_kind_idx").on(t.guideId, t.kind)]);
 
 export const orderReferences = pgTable("order_references", {
   id: uuid("id").primaryKey().defaultRandom(),
