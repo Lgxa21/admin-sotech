@@ -50,6 +50,13 @@
       "when": 1795558547827,
       "tag": "0006_brand_guides",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1795663650257,
+      "tag": "0007_studio_brand_assets",
+      "breakpoints": true
     }
   ]
 }

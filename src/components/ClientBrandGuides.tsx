@@ -1,5 +1,6 @@
 import { saveBrandGuide } from "@/app/actions/brand-guides";
 import type { BrandGuide } from "@/lib/brand-guides";
+import { STUDIO_BRAND_ASSETS, STUDIO_SHAPES, isStudioBrandAsset } from "@/lib/studio-brand-fields";
 import BrandManualField from "./BrandManualField";
 import BrandColorsField from "./BrandColorsField";
 import SubmitButton from "./SubmitButton";
@@ -65,6 +66,7 @@ function GuideCard({ clientId, guide }: { clientId: string; guide: BrandGuide })
           <div key={label ?? ""}><dt className="label">{label}</dt><dd className="whitespace-pre-wrap break-words text-sm">{value}</dd></div>
         ))}
       </dl>
+      {!!guide.studioAssets.length && <p className="text-sm text-muted break-words">Content Studio · {guide.studioAssets.map(({ kind }) => STUDIO_BRAND_ASSETS[kind].label).join(" · ")}</p>}
       <details className="border-t border-line">
         <summary className="cursor-pointer py-3 text-sm font-semibold underline">Editar manual</summary>
         <GuideForm clientId={clientId} isCompany={guide.isCompany} guide={guide} />
@@ -100,6 +102,26 @@ function GuideForm({ clientId, isCompany, guide }: { clientId: string; isCompany
             placeholder="Ej. Evitar degradados" />
         </label>
       </div>
+      <details className="rounded-xl border border-line p-3">
+        <summary className="cursor-pointer text-sm font-semibold">Recursos para Content Studio</summary>
+        <div className="mt-3 grid min-w-0 gap-3 sm:grid-cols-2">
+          <label className="grid gap-1 text-sm font-semibold">Figura de plantilla
+            <select className="input" name="studioShape" defaultValue={guide?.studioShape ?? "none"}>
+              {Object.entries(STUDIO_SHAPES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </select>
+          </label>
+          {Object.keys(STUDIO_BRAND_ASSETS).filter(isStudioBrandAsset).map((kind) => {
+            const { label, font } = STUDIO_BRAND_ASSETS[kind];
+            const existing = guide?.studioAssets.find((asset) => asset.kind === kind);
+            return <div key={kind} className="grid min-w-0 gap-1">
+              <label className="grid min-w-0 gap-1 text-sm font-semibold">{label}
+                <input className="input min-w-0" type="file" name={`studio-${kind}`} accept={font ? ".woff2,.woff,.otf,.ttf" : "image/png,image/jpeg,image/webp"} />
+              </label>
+              {existing && <label className="break-all text-xs"><input type="checkbox" name={`remove-studio-${kind}`} /> Quitar {existing.name}</label>}
+            </div>;
+          })}
+        </div>
+      </details>
       <div><SubmitButton pendingLabel="Guardando…">Guardar manual</SubmitButton></div>
     </form>
   );
