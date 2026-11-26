@@ -1,6 +1,7 @@
 const P: Record<string, string> = {
   home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
   board: "M4 4h5v16H4zM10 4h5v10h-5zM16 4h4v7h-4z",
+  studio: "M3 6h6v12H3zM9 4h6v16H9zM15 6h6v12h-6z",
   check: "M4 12l5 5L20 6",
   users: "M16 19v-1a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v1M9 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM22 19v-1a4 4 0 0 0-3-3.9M16 4.1a3 3 0 0 1 0 5.8",
   building: "M4 21V5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v16M15 9h4a1 1 0 0 1 1 1v11M8 8h3M8 12h3M8 16h3M2 21h20",

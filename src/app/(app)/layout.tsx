@@ -5,6 +5,7 @@ import { db, notifications } from "@/db";
 import { requireUser } from "@/lib/auth";
 import { ROLE_LABEL } from "@/lib/labels";
 import { canManage } from "@/lib/perm";
+import { contentStudioConfig } from "@/lib/content-studio";
 import { logout } from "@/app/actions/auth";
 import Nav from "@/components/Nav";
 import MobileMore from "@/components/MobileMore";
@@ -21,6 +22,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       ? [{ href: "/", label: "Hoy", icon: "home" }, { href: "/ordenes", label: "Tablero", icon: "board", match: ["/tareas", "/equipo", "/calendario"] }]
       : [{ href: "/tareas", label: "Mis tareas", icon: "check" }]),
     ...(canManage(u.role) ? [{ href: "/clientes", label: "Clientes", icon: "building" }, { href: "/finanzas", label: "Finanzas", icon: "money" }] : []),
+    ...(contentStudioConfig(u.role) ? [{ href: "/carruseles", label: "Content Studio", icon: "studio" }] : []),
     { href: "/biblioteca", label: "Biblioteca", icon: "book" },
     { href: "/avisos", label: "Avisos", icon: "bell", badge: n },
   ];
